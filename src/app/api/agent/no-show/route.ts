@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAgentSession } from '@/lib/api-auth';
 import { markNoShow } from '@/lib/services/ticket.service';
+import { emitTicketNoShow } from '@/lib/socket-emitter';
 
 const noShowSchema = z.object({
   ticketId: z.string().min(1, 'Ticket ID requis'),
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
     }
 
     const ticket = await markNoShow(parsed.data.ticketId);
+
+    emitTicketNoShow(ticket.serviceId, ticket.id);
 
     return NextResponse.json({ ticket });
   } catch (error) {

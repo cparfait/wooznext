@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createTicket } from '@/lib/services/ticket.service';
+import { emitQueueUpdate } from '@/lib/socket-emitter';
 
 const createTicketSchema = z.object({
   phone: z
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest) {
 
     const { phone, serviceId } = parsed.data;
     const { ticket, isExisting } = await createTicket(phone, serviceId);
+
+    if (!isExisting) {
+      emitQueueUpdate(serviceId);
+    }
 
     return NextResponse.json(
       { ticket, isExisting },

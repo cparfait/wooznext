@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentSession } from '@/lib/api-auth';
 import { returnTicketToQueue } from '@/lib/services/ticket.service';
+import { emitTicketReturned } from '@/lib/socket-emitter';
 
 export async function POST(
   req: NextRequest,
@@ -13,6 +14,8 @@ export async function POST(
     }
 
     const ticket = await returnTicketToQueue(params.id);
+
+    emitTicketReturned(ticket.serviceId, ticket.id);
 
     return NextResponse.json({ ticket });
   } catch (error) {

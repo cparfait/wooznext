@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAgentSession } from '@/lib/api-auth';
 import { completeTicket } from '@/lib/services/ticket.service';
+import { emitTicketCompleted } from '@/lib/socket-emitter';
 
 const completeSchema = z.object({
   ticketId: z.string().min(1, 'Ticket ID requis'),
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
     }
 
     const ticket = await completeTicket(parsed.data.ticketId);
+
+    emitTicketCompleted(ticket.serviceId, ticket.id);
 
     return NextResponse.json({ ticket });
   } catch (error) {

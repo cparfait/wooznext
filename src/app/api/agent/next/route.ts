@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAgentSession } from '@/lib/api-auth';
 import { callNextTicket } from '@/lib/services/ticket.service';
+import { emitTicketCalled, emitQueueUpdate } from '@/lib/socket-emitter';
 
 export async function POST() {
   try {
@@ -25,6 +26,9 @@ export async function POST() {
         { status: 404 }
       );
     }
+
+    emitTicketCalled(serviceId, ticket.id, ticket.displayCode);
+    emitQueueUpdate(serviceId);
 
     return NextResponse.json({ ticket });
   } catch (error) {

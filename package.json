@@ -4,9 +4,10 @@
   "private": true,
   "description": "Outil de gestion de file d'attente pour collectivités",
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx server.ts",
+    "dev:next": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
