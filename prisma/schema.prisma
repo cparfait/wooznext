@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+enum TicketStatus {
+  WAITING
+  SERVING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// --- Models ---
+
+/// Service municipal (ex: État civil, Urbanisme, etc.)
+model Service {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  prefix    String   @default("") // Préfixe optionnel pour les tickets (ex: "EC" pour État civil)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agents         Agent[]
+  counters       Counter[]
+  tickets        Ticket[]
+  dailySequences DailySequence[]
+
+  @@map("services")
+}
+
+/// Agent de la collectivité (opérateur de guichet)
+model Agent {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(AGENT)
+  serviceId    String?  @map("service_id")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  service  Service?  @relation(fields: [serviceId], references: [id])
+  counters Counter[]
+  tickets  Ticket[]  @relation("CalledBy")
+
+  @@map("agents")
+}
+
+/// Visiteur identifié par son numéro de téléphone
+model Visitor {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  createdAt DateTime @default(now())
+
+  tickets Ticket[]
+
+  @@map("visitors")
+}
+
+/// Guichet physique
+model Counter {
+  id              String  @id @default(cuid())
+  label           String // Ex: "Guichet 1", "Guichet 2"
+  isActive        Boolean @default(true)
+  serviceId       String  @map("service_id")
+  agentId         String? @map("agent_id")
+  currentTicketId String? @unique @map("current_ticket_id")
+
+  service       Service @relation(fields: [serviceId], references: [id])
+  agent         Agent?  @relation(fields: [agentId], references: [id])
+  currentTicket Ticket? @relation("CurrentlyServing", fields: [currentTicketId], references: [id])
+
+  @@map("counters")
+}
+
+/// Ticket de file d'attente
+model Ticket {
+  id          String       @id @default(cuid())
+  number      Int // Numéro séquentiel du jour (1, 2, 3...)
+  displayCode String       @map("display_code") // Code affiché (ex: "001", "EC-001")
+  status      TicketStatus @default(WAITING)
+  serviceId   String       @map("service_id")
+  visitorId   String       @map("visitor_id")
+  calledById  String?      @map("called_by_id")
+  createdAt   DateTime     @default(now())
+  calledAt    DateTime?    @map("called_at")
+  completedAt DateTime?    @map("completed_at")
+
+  service  Service  @relation(fields: [serviceId], references: [id])
+  visitor  Visitor  @relation(fields: [visitorId], references: [id])
+  calledBy Agent?   @relation("CalledBy", fields: [calledById], references: [id])
+  counter  Counter? @relation("CurrentlyServing")
+
+  @@index([serviceId, status])
+  @@index([visitorId, status])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+/// Séquence quotidienne pour la numérotation des tickets par service
+model DailySequence {
+  id         String   @id @default(cuid())
+  serviceId  String   @map("service_id")
+  date       DateTime @db.Date
+  lastNumber Int      @default(0) @map("last_number")
+
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@unique([serviceId, date])
+  @@map("daily_sequences")
+}

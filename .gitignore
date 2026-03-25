@@ -1,0 +1,38 @@
+# Dépendances
+node_modules/
+.npm
+
+# Next.js
+.next/
+out/
+build/
+
+# Environnement — NE JAMAIS COMMITER
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Prisma
+prisma/migrations/*.sql
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker volumes locales
+postgres_data/
+postgres_dev_data/
+
+# Divers
+*.tsbuildinfo
