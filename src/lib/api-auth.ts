@@ -10,3 +10,12 @@ export async function getAgentSession() {
   if (!session?.user?.id) return null;
   return session;
 }
+
+/**
+ * Get admin session or null. Returns null if user is not ADMIN.
+ */
+export async function getAdminSession() {
+  const session = await getAgentSession();
+  if (!session || session.user.role !== 'ADMIN') return null;
+  return session;
+}

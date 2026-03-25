@@ -147,66 +147,66 @@ DB_PASSWORD           # Mot de passe PostgreSQL
 
 ### Phase 2 — Base de données
 - [x] Schéma Prisma complet (Service, Agent, Visitor, Ticket, Counter, DailySequence)
-- [ ] Migration initiale (`npx prisma migrate dev --name init`)
-- [ ] Seed de données de test (`npm run db:seed`)
-- [ ] Tester les relations et contraintes en studio (`npm run db:studio`)
+- [x] Migration initiale (`npx prisma migrate dev --name init`)
+- [x] Seed de données de test (`npm run db:seed`)
+- [x] Tester les relations et contraintes en studio (`npm run db:studio`)
 
 ### Phase 3 — Authentification agents
-- [ ] Configurer NextAuth.js avec `CredentialsProvider`
-- [ ] Page de login `/agent/login`
-- [ ] Middleware de protection des routes `/agent` et `/admin`
-- [ ] Hash des mots de passe au seed et à la création
+- [x] Configurer NextAuth.js avec `CredentialsProvider`
+- [x] Page de login `/agent/login`
+- [x] Middleware de protection des routes `/agent` et `/admin`
+- [x] Hash des mots de passe au seed et à la création
 
 ### Phase 4 — API REST
-- [ ] `POST /api/tickets` — Créer un ticket (avec anti-doublon téléphone)
-- [ ] `GET /api/tickets/[id]` — Lire un ticket
-- [ ] `POST /api/agent/next` — Appeler le visiteur suivant
-- [ ] `POST /api/agent/call/[id]` — Appeler un visiteur spécifique
-- [ ] `POST /api/agent/complete` — Marquer comme terminé
-- [ ] `POST /api/agent/return/[id]` — Renvoyer en file
-- [ ] `GET /api/display/[serviceId]` — Données pour l'écran public
+- [x] `POST /api/tickets` — Créer un ticket (avec anti-doublon téléphone)
+- [x] `GET /api/tickets/[id]` — Lire un ticket
+- [x] `POST /api/agent/next` — Appeler le visiteur suivant
+- [x] `POST /api/agent/call/[id]` — Appeler un visiteur spécifique
+- [x] `POST /api/agent/complete` — Marquer comme terminé
+- [x] `POST /api/agent/return/[id]` — Renvoyer en file
+- [x] `GET /api/display/[serviceId]` — Données pour l'écran public
 
 ### Phase 5 — Temps réel (Socket.IO)
-- [ ] Serveur Socket.IO custom intégré à Next.js
-- [ ] Événements : `ticket:called`, `queue:updated`, `ticket:completed`
-- [ ] Rooms par service pour cibler les bonnes connexions
-- [ ] Reconnexion automatique côté client
+- [x] Serveur Socket.IO custom intégré à Next.js
+- [x] Événements : `ticket:called`, `queue:updated`, `ticket:completed`
+- [x] Rooms par service pour cibler les bonnes connexions
+- [x] Reconnexion automatique côté client
 
 ### Phase 6 — Vue Visiteur Mobile
-- [ ] Formulaire de saisie du téléphone (page `/`)
-- [ ] Sélection du service
-- [ ] Affichage du ticket (`/ticket/[id]`) avec position en file
-- [ ] Cercle de progression animé
-- [ ] Popup festive "C'est votre tour !" avec confetti
+- [x] Formulaire de saisie du téléphone (page `/`)
+- [x] Sélection du service
+- [x] Affichage du ticket (`/ticket/[id]`) avec position en file
+- [x] Cercle de progression animé
+- [x] Popup festive "C'est votre tour !" avec confetti
 
 ### Phase 7 — Vue Agent
-- [ ] Compteur "Actuellement en service" (grand format)
-- [ ] Bandeau "X visiteur(s) en attente"
-- [ ] Bouton "Suivant" (appel automatique)
-- [ ] Bottom sheet "Choisir visiteur" (appel manuel)
-- [ ] Modale de confirmation "Retour à la file"
-- [ ] Bouton "Ajouter" (ticket manuel sans QR code)
+- [x] Compteur "Actuellement en service" (grand format)
+- [x] Bandeau "X visiteur(s) en attente"
+- [x] Bouton "Suivant" (appel automatique)
+- [x] Bottom sheet "Choisir visiteur" (appel manuel)
+- [x] Modale de confirmation "Retour à la file"
+- [x] Bouton "Ajouter" (ticket manuel sans QR code)
 
 ### Phase 8 — Vue Affichage Public (Chromecast)
-- [ ] Numéro en cours (très grand format)
-- [ ] Numéro suivant (format moyen)
-- [ ] Compteur de visiteurs en attente
-- [ ] Mise à jour instantanée via Socket.IO
-- [ ] Mode plein écran automatique
+- [x] Numéro en cours (très grand format)
+- [x] Numéro suivant (format moyen)
+- [x] Compteur de visiteurs en attente
+- [x] Mise à jour instantanée via Socket.IO
+- [x] Mode plein écran automatique
 
 ### Phase 9 — Admin
-- [ ] Gestion des services (CRUD)
-- [ ] Gestion des agents (créer, désactiver)
-- [ ] Gestion des guichets
-- [ ] Statistiques du jour (tickets traités, temps moyen)
-- [ ] Réinitialisation manuelle de la file
+- [x] Gestion des services (CRUD)
+- [x] Gestion des agents (créer, désactiver)
+- [ ] Gestion des guichets (interface dediee)
+- [x] Statistiques du jour (tickets traités, temps moyen)
+- [x] Réinitialisation manuelle de la file
 
 ### Phase 10 — Production
-- [ ] Générer le QR code pointant vers `/`
+- [x] Générer le QR code pointant vers `/` (`GET /api/qrcode`)
 - [ ] Configurer Traefik ou Caddy (HTTPS / Let's Encrypt)
-- [ ] Tester le build Docker complet
+- [x] Tester le build Docker complet
 - [ ] Documenter le déploiement sur VPS Hostinger
-- [ ] Mettre en place la purge RGPD automatique
+- [x] Mettre en place la purge RGPD automatique (`scripts/purge-rgpd.ts`)
 
 ---
 
@@ -214,16 +214,21 @@ DB_PASSWORD           # Mot de passe PostgreSQL
 
 ```bash
 # Développement local
-docker-compose -f docker-compose.dev.yml up -d   # Démarrer PostgreSQL
-npm run dev                                       # Démarrer Next.js
+docker compose -f docker-compose.dev.yml up -d    # Démarrer PostgreSQL
+npm run dev                                       # Démarrer Next.js + Socket.IO
 npm run db:migrate                                # Appliquer les migrations
 npm run db:seed                                   # Injecter les données de test
 npm run db:studio                                 # Ouvrir Prisma Studio (UI BDD)
 
 # Production
-docker-compose up -d --build                      # Build et démarrer tout
-docker-compose logs -f app                        # Voir les logs de l'app
-docker-compose exec app npx prisma migrate deploy # Appliquer migrations en prod
+docker compose up -d --build                      # Build et démarrer tout
+docker compose logs -f app                        # Voir les logs de l'app
+
+# RGPD
+npx tsx scripts/purge-rgpd.ts                     # Purge manuelle des donnees > 30 jours
+
+# QR Code
+# Acceder a /api/qrcode?url=https://votre-domaine.fr pour generer le QR code SVG
 ```
 
 ---
