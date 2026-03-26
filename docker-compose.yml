@@ -4,13 +4,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: cparfait
-      POSTGRES_USER: cparfait
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cparfait_secret}
+      POSTGRES_DB: wooznext
+      POSTGRES_USER: wooznext
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-wooznext_secret}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cparfait"]
+      test: ["CMD-SHELL", "pg_isready -U wooznext"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://cparfait:${DB_PASSWORD:-cparfait_secret}@db:5432/cparfait
+      DATABASE_URL: postgresql://wooznext:${DB_PASSWORD:-wooznext_secret}@db:5432/wooznext
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     depends_on:
