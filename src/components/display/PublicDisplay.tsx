@@ -85,7 +85,7 @@ export default function PublicDisplay({
       {/* Current ticket */}
       <div className="space-y-4 text-center">
         <h1 className="text-4xl font-black text-gray-900">
-          Numero du visiteur en cours
+          Ticket en cours
         </h1>
         <p
           className={`text-[12rem] font-black leading-none tracking-wider transition-all duration-500 ${
@@ -101,7 +101,7 @@ export default function PublicDisplay({
       {/* Next ticket */}
       <div className="mt-12 space-y-2 text-center">
         <p className="text-3xl font-bold text-gray-900">
-          Visiteur suivant :
+          Ticket suivant :
         </p>
         <p className="text-7xl font-black tracking-wider text-gray-500">
           {data.nextCode ?? '---'}
@@ -111,8 +111,8 @@ export default function PublicDisplay({
       {/* Waiting count */}
       <p className="mt-12 text-2xl text-gray-700">
         {data.waitingCount === 0
-          ? 'Aucun visiteur en attente'
-          : `Il y a ${data.waitingCount} visiteur${data.waitingCount > 1 ? 's' : ''} en attente`}
+          ? 'Aucun ticket en attente'
+          : `${data.waitingCount} ticket${data.waitingCount > 1 ? 's' : ''} en attente`}
       </p>
     </main>
   );
