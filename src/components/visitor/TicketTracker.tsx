@@ -149,14 +149,6 @@ export default function TicketTracker({
   // --- En attente ---
   return (
     <div className="flex min-h-svh flex-col bg-gray-50">
-      {/* Header */}
-      <div className="px-5 pt-5">
-        <p className="text-sm font-medium text-gray-500">
-          <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-primary-500" />
-          {ticket.service.name}
-        </p>
-      </div>
-
       {/* Contenu principal */}
       <div className="flex flex-1 flex-col items-center justify-center px-5">
         {/* Numero du ticket */}
