@@ -237,5 +237,5 @@ npx tsx scripts/purge-rgpd.ts                     # Purge manuelle des donnees >
 
 | Rôle | Email | Mot de passe |
 |---|---|---|
-| Admin | admin@mairie.fr | admin123 |
-| Agent | agent@mairie.fr | agent123 |
+| Admin | admin@wooz.next | WoozNext14!! |
+| Agent | agent@wooz.next | WoozNext14!! |
