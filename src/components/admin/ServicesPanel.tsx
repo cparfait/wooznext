@@ -140,12 +140,68 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
   );
 }
 
+function ServiceLinks({ serviceId }: { serviceId: string }) {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const visitorUrl = `${baseUrl}/?service=${serviceId}`;
+  const displayUrl = `${baseUrl}/display/${serviceId}`;
+  const qrCodeUrl = `${baseUrl}/api/qrcode?serviceId=${serviceId}`;
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+  }
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      {/* QR Code */}
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrCodeUrl} alt="QR Code" className="h-28 w-28" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div>
+            <p className="text-xs font-medium text-gray-500">Page visiteur (QR code)</p>
+            <div className="flex items-center gap-1">
+              <code className="block truncate text-xs text-primary-600">{visitorUrl}</code>
+              <button
+                onClick={() => copyToClipboard(visitorUrl)}
+                className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                title="Copier"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500">Ecran d&apos;affichage</p>
+            <div className="flex items-center gap-1">
+              <code className="block truncate text-xs text-primary-600">{displayUrl}</code>
+              <button
+                onClick={() => copyToClipboard(displayUrl)}
+                className="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                title="Copier"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ServicesPanel() {
   const [services, setServices] = useState<Service[]>([]);
   const [name, setName] = useState('');
   const [prefix, setPrefix] = useState('');
   const [loading, setLoading] = useState(false);
   const [expandedHours, setExpandedHours] = useState<string | null>(null);
+  const [expandedLinks, setExpandedLinks] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -223,6 +279,10 @@ export default function ServicesPanel() {
 
   function toggleHours(id: string) {
     setExpandedHours((prev) => (prev === id ? null : id));
+  }
+
+  function toggleLinks(id: string) {
+    setExpandedLinks((prev) => (prev === id ? null : id));
   }
 
   return (
@@ -313,6 +373,16 @@ export default function ServicesPanel() {
                     Modifier
                   </button>
                   <button
+                    onClick={() => toggleLinks(s.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                      expandedLinks === s.id
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Liens / QR
+                  </button>
+                  <button
                     onClick={() => toggleHours(s.id)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
                       expandedHours === s.id
@@ -369,6 +439,9 @@ export default function ServicesPanel() {
             {deleteError && deleteConfirm === s.id && (
               <p className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>
             )}
+
+            {/* Service links and QR code */}
+            {expandedLinks === s.id && <ServiceLinks serviceId={s.id} />}
 
             {/* Opening hours editor */}
             {expandedHours === s.id && <OpeningHoursEditor serviceId={s.id} />}
