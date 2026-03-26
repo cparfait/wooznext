@@ -3,10 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useServiceSocket } from '@/hooks/useSocket';
 
+interface ServingTicket {
+  displayCode: string;
+  counterLabel: string | null;
+  calledAt: string | null;
+}
+
 interface DisplayData {
   currentCode: string | null;
+  currentCounter: string | null;
   nextCode: string | null;
   waitingCount: number;
+  servingTickets: ServingTicket[];
 }
 
 interface PublicDisplayProps {
@@ -51,7 +59,6 @@ export default function PublicDisplay({
       if (!res.ok) return;
       const newData = await res.json();
 
-      // Flash animation + sound when current ticket changes
       if (newData.currentCode && newData.currentCode !== data.currentCode) {
         setFlash(true);
         playNotificationSound();
@@ -94,93 +101,156 @@ export default function PublicDisplay({
 
   return (
     <main
-      className="flex min-h-screen cursor-pointer flex-col bg-gradient-to-b from-primary-800 via-primary-700 to-primary-900"
+      className="flex h-screen cursor-pointer overflow-hidden"
       onClick={handleFullscreen}
     >
-      {/* Header bar */}
-      <header className="flex items-center justify-between px-10 py-6">
-        <div className="flex items-center gap-4">
-          {logoUrl && (
-            <img
-              src={logoUrl}
-              alt="Logo"
-              className="h-14 w-auto object-contain"
-            />
-          )}
-          <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-accent-500 animate-pulse-soft" />
-            <span className="text-lg font-medium text-primary-200">
-              File active
+      {/* Zone gauche — ticket en cours */}
+      <div className="flex flex-[65] flex-col bg-gradient-to-br from-primary-800 via-primary-700 to-primary-900">
+        {/* Header */}
+        <header className="flex items-center justify-between px-8 py-5">
+          <div className="flex items-center gap-4">
+            {logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="h-12 w-auto object-contain"
+              />
+            )}
+            <h2 className="text-xl font-bold tracking-wide text-white">
+              {serviceName}
+            </h2>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full bg-accent-500 animate-pulse-soft" />
+              <span className="text-sm font-medium text-primary-200">File active</span>
+            </div>
+            <span className="font-mono text-lg tabular-nums text-primary-200">
+              {time}
             </span>
           </div>
-        </div>
-        {serviceName && (
-          <h2 className="text-2xl font-bold tracking-wide text-white">
-            {serviceName}
-          </h2>
-        )}
-        <span className="font-mono text-lg tabular-nums text-primary-200">
-          {time}
-        </span>
-      </header>
+        </header>
 
-      {/* Main content */}
-      <div className="flex flex-1 items-center justify-center px-10 pb-10">
-        <div className="grid w-full max-w-6xl grid-cols-3 gap-8">
-
-          {/* Current ticket — main card */}
-          <div className="col-span-2 flex flex-col items-center justify-center rounded-3xl bg-white/10 p-12 backdrop-blur-sm ring-1 ring-white/20">
-            <p className="mb-2 text-2xl font-semibold uppercase tracking-widest text-primary-200">
-              Ticket en cours
-            </p>
-            <div className="relative">
-              <p
-                className={`font-black leading-none tracking-wider transition-all duration-500 ${
-                  data.currentCode
-                    ? flash
-                      ? 'text-[14rem] scale-105 text-accent-400'
-                      : 'text-[14rem] scale-100 text-white'
-                    : 'text-[10rem] text-white/30'
-                }`}
-              >
-                {data.currentCode ?? '---'}
-              </p>
-              {flash && (
-                <div className="absolute inset-0 rounded-3xl bg-accent-500/10 animate-slide-up" />
-              )}
-            </div>
+        {/* Ticket en cours — zone centrale */}
+        <div className="flex flex-1 flex-col items-center justify-center px-8">
+          <div
+            className={`flex flex-col items-center rounded-3xl px-16 py-12 transition-all duration-500 ${
+              flash ? 'bg-accent-500/15 animate-flash-bg' : ''
+            }`}
+          >
+            {data.currentCode ? (
+              <>
+                <p className="mb-1 text-xl font-semibold uppercase tracking-[0.2em] text-accent-400">
+                  Est appele
+                </p>
+                <p
+                  className={`font-black leading-none tracking-wider transition-all duration-500 ${
+                    flash
+                      ? 'text-[12rem] text-accent-400 scale-105'
+                      : 'text-[12rem] text-white scale-100'
+                  }`}
+                >
+                  {data.currentCode}
+                </p>
+                {data.currentCounter && (
+                  <div className="mt-4 rounded-xl bg-white/15 px-8 py-3 backdrop-blur-sm">
+                    <p className="text-2xl font-bold text-white">
+                      {data.currentCounter}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-semibold text-primary-300">
+                  Aucun ticket en cours
+                </p>
+                <p className="mt-2 text-[8rem] font-black leading-none text-white/20">
+                  ---
+                </p>
+              </>
+            )}
           </div>
 
-          {/* Right column: next ticket + waiting count */}
-          <div className="flex flex-col gap-8">
-
-            {/* Next ticket */}
-            <div className="flex flex-1 flex-col items-center justify-center rounded-3xl bg-white/5 p-8 ring-1 ring-white/10">
-              <p className="mb-2 text-lg font-semibold uppercase tracking-widest text-primary-300">
-                Ticket suivant
-              </p>
-              <p className={`text-8xl font-black tracking-wider ${
-                data.nextCode ? 'text-white/80' : 'text-white/20'
-              }`}>
-                {data.nextCode ?? '---'}
-              </p>
+          {/* Info en attente — bas de la zone gauche */}
+          <div className="mt-auto mb-6 flex items-center gap-6">
+            {data.nextCode && (
+              <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-6 py-3 ring-1 ring-white/10">
+                <span className="text-sm uppercase tracking-wider text-primary-300">Suivant</span>
+                <span className="text-2xl font-black text-white">{data.nextCode}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-6 py-3 ring-1 ring-white/10">
+              <span className="text-sm uppercase tracking-wider text-primary-300">En attente</span>
+              <span className="text-2xl font-black text-white">{data.waitingCount}</span>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Waiting count */}
-            <div className="flex flex-1 flex-col items-center justify-center rounded-3xl bg-white/5 p-8 ring-1 ring-white/10">
-              <p className="mb-2 text-lg font-semibold uppercase tracking-widest text-primary-300">
-                En attente
-              </p>
-              <p className="text-8xl font-black text-white/80">
-                {data.waitingCount}
-              </p>
-              <p className="mt-2 text-lg text-primary-300">
-                {data.waitingCount === 0
-                  ? 'File vide'
-                  : `ticket${data.waitingCount > 1 ? 's' : ''}`}
-              </p>
+      {/* Bandeau droit — liste des tickets appeles */}
+      <div className="flex flex-[35] flex-col bg-gray-50">
+        {/* En-tete du bandeau */}
+        <div className="border-b border-gray-200 px-6 py-5">
+          <h3 className="text-lg font-bold uppercase tracking-wider text-gray-500">
+            Tickets appeles
+          </h3>
+        </div>
+
+        {/* Liste des tickets */}
+        <div className="flex-1 overflow-hidden">
+          {data.servingTickets.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {data.servingTickets.map((ticket, index) => (
+                <div
+                  key={ticket.displayCode}
+                  className={`flex items-center justify-between px-6 py-5 ${
+                    index === 0 ? 'animate-slide-down bg-primary-50' : ''
+                  }`}
+                >
+                  <span
+                    className={`text-5xl font-black tracking-wider ${
+                      index === 0 ? 'text-primary-700' : 'text-gray-800'
+                    }`}
+                  >
+                    {ticket.displayCode}
+                  </span>
+                  {ticket.counterLabel && (
+                    <div
+                      className={`rounded-lg px-4 py-2 text-right ${
+                        index === 0
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-blue-500 text-white'
+                      }`}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">
+                        Guichet
+                      </p>
+                      <p className="text-xl font-black leading-tight">
+                        {ticket.counterLabel}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-lg text-gray-300">Aucun ticket en cours</p>
+            </div>
+          )}
+        </div>
 
+        {/* Compteur en attente — bas du bandeau */}
+        <div className="border-t border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+              En attente
+            </span>
+            <span className="text-3xl font-black text-gray-700">
+              {data.waitingCount}
+            </span>
           </div>
         </div>
       </div>

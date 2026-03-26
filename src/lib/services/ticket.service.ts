@@ -256,10 +256,14 @@ export async function getQueueStats(serviceId: string) {
  * Get display data for a service (public screen).
  */
 export async function getDisplayData(serviceId: string) {
-  const [currentTicket, waitingTickets] = await Promise.all([
-    prisma.ticket.findFirst({
+  const [servingTickets, waitingTickets] = await Promise.all([
+    prisma.ticket.findMany({
       where: { serviceId, status: TicketStatus.SERVING },
       orderBy: { calledAt: 'desc' },
+      take: 8,
+      include: {
+        counter: { select: { label: true } },
+      },
     }),
     prisma.ticket.findMany({
       where: { serviceId, status: TicketStatus.WAITING },
@@ -267,9 +271,17 @@ export async function getDisplayData(serviceId: string) {
     }),
   ]);
 
+  const currentTicket = servingTickets[0] ?? null;
+
   return {
     currentCode: currentTicket?.displayCode ?? null,
+    currentCounter: currentTicket?.counter?.label ?? null,
     nextCode: waitingTickets[0]?.displayCode ?? null,
     waitingCount: waitingTickets.length,
+    servingTickets: servingTickets.map((t) => ({
+      displayCode: t.displayCode,
+      counterLabel: t.counter?.label ?? null,
+      calledAt: t.calledAt?.toISOString() ?? null,
+    })),
   };
 }
