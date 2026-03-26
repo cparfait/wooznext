@@ -10,20 +10,27 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#4272b8',
-          600: '#3b65a3',
-          700: '#2d4f82',
-          800: '#1e3a5f',
-          900: '#0f253d',
+          50: '#f0faf4',
+          100: '#daf2e3',
+          200: '#b8e5ca',
+          300: '#88d2a8',
+          400: '#52b880',
+          500: '#2e9961',
+          600: '#1a804e',
+          700: '#006e46',
+          800: '#005737',
+          900: '#00402a',
+        },
+        accent: {
+          300: '#c8d83a',
+          400: '#bdd01e',
+          500: '#aec80c',
+          600: '#96ad0a',
+          700: '#7d9008',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-montserrat)', 'Montserrat', 'Arial', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'pulse-soft': {
