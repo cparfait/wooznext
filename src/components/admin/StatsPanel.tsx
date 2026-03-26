@@ -1,6 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface AgentStat {
+  id: string;
+  name: string;
+  completed: number;
+  noShow: number;
+  avgServiceTimeSeconds: number;
+}
 
 interface Stats {
   totalToday: number;
@@ -10,22 +18,59 @@ interface Stats {
   servingNow: number;
   avgServiceTimeSeconds: number;
   perService: { id: string; name: string; total: number; completed: number; waiting: number }[];
+  perAgent: AgentStat[];
+}
+
+interface ServiceOption {
+  id: string;
+  name: string;
+}
+
+interface AgentOption {
+  id: string;
+  name: string;
 }
 
 export default function StatsPanel() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+
+  const fetchStats = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (selectedServiceId) params.set('serviceId', selectedServiceId);
+    if (selectedAgentId) params.set('agentId', selectedAgentId);
+    const qs = params.toString();
+    const res = await fetch(`/api/admin/stats${qs ? `?${qs}` : ''}`);
+    if (res.ok) setStats(await res.json());
+  }, [selectedServiceId, selectedAgentId]);
+
+  useEffect(() => {
+    async function loadFilters() {
+      const [sRes, aRes] = await Promise.all([
+        fetch('/api/services'),
+        fetch('/api/admin/agents'),
+      ]);
+      if (sRes.ok) {
+        const data = await sRes.json();
+        setServices(data.services || []);
+      }
+      if (aRes.ok) {
+        const data = await aRes.json();
+        setAgents((data.agents || []).map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })));
+      }
+    }
+    loadFilters();
+  }, []);
 
   useEffect(() => {
     fetchStats();
     const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
-  }, []);
-
-  async function fetchStats() {
-    const res = await fetch('/api/admin/stats');
-    if (res.ok) setStats(await res.json());
-  }
+  }, [fetchStats]);
 
   async function handleReset() {
     if (!confirm('Reinitialiser toute la file ? Tous les tickets en attente seront annules.')) return;
@@ -46,6 +91,30 @@ export default function StatsPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <select
+          value={selectedServiceId}
+          onChange={(e) => setSelectedServiceId(e.target.value)}
+          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
+        >
+          <option value="">Tous les services</option>
+          {services.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <select
+          value={selectedAgentId}
+          onChange={(e) => setSelectedAgentId(e.target.value)}
+          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
+        >
+          <option value="">Tous les agents</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Card label="Tickets du jour" value={stats.totalToday} />
@@ -72,6 +141,25 @@ export default function StatsPanel() {
           ))}
         </div>
       </div>
+
+      {/* Per agent */}
+      {stats.perAgent && stats.perAgent.length > 0 && (
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-gray-700">Par agent</h3>
+          <div className="space-y-2">
+            {stats.perAgent.map((a) => (
+              <div key={a.id} className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+                <span className="font-medium text-gray-900">{a.name}</span>
+                <div className="flex gap-4 text-sm text-gray-500">
+                  <span className="text-green-600">{a.completed} termines</span>
+                  <span className="text-red-500">{a.noShow} absents</span>
+                  <span>{formatTime(a.avgServiceTimeSeconds)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Reset */}
       <button

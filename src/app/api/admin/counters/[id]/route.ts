@@ -3,10 +3,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 
-const updateServiceSchema = z.object({
-  name: z.string().min(1).optional(),
-  prefix: z.string().max(5).optional(),
-  isActive: z.boolean().optional(),
+const updateCounterSchema = z.object({
+  label: z.string().min(1, 'Label requis'),
 });
 
 export async function PATCH(
@@ -18,19 +16,23 @@ export async function PATCH(
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     const body = await req.json();
-    const parsed = updateServiceSchema.safeParse(body);
+    const parsed = updateCounterSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
-    const service = await prisma.service.update({
+    const counter = await prisma.counter.update({
       where: { id: params.id },
-      data: parsed.data,
+      data: { label: parsed.data.label },
+      include: {
+        agent: { select: { id: true, name: true } },
+        currentTicket: { select: { id: true, displayCode: true } },
+      },
     });
 
-    return NextResponse.json({ service });
+    return NextResponse.json({ counter });
   } catch (error) {
-    console.error('Error updating service:', error);
+    console.error('Error updating counter:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -43,29 +45,30 @@ export async function DELETE(
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
-    // Check for active tickets (WAITING or SERVING)
-    const activeTickets = await prisma.ticket.count({
-      where: {
-        serviceId: params.id,
-        status: { in: ['WAITING', 'SERVING'] },
-      },
+    // Check if counter has a current ticket being served
+    const counter = await prisma.counter.findUnique({
+      where: { id: params.id },
+      select: { currentTicketId: true },
     });
 
-    if (activeTickets > 0) {
+    if (!counter) {
+      return NextResponse.json({ error: 'Guichet introuvable' }, { status: 404 });
+    }
+
+    if (counter.currentTicketId) {
       return NextResponse.json(
-        { error: 'Ce service a des tickets actifs. Annulez-les d\'abord.' },
-        { status: 400 }
+        { error: 'Impossible de supprimer un guichet avec un ticket en cours de traitement.' },
+        { status: 409 }
       );
     }
 
-    // Actually delete the service (cascade handles related records)
-    await prisma.service.delete({
+    await prisma.counter.delete({
       where: { id: params.id },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting service:', error);
+    console.error('Error deleting counter:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
