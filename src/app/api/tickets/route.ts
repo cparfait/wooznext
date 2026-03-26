@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createTicket } from '@/lib/services/ticket.service';
 import { emitQueueUpdate } from '@/lib/socket-emitter';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 const createTicketSchema = z.object({
   phone: z
