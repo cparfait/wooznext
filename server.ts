@@ -1,5 +1,4 @@
 import { createServer } from 'http';
-import { parse } from 'url';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 
@@ -10,9 +9,18 @@ const port = parseInt(process.env.PORT || '3000', 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+function parseUrl(url: string) {
+  const parsed = new URL(url, 'http://localhost');
+  const query: Record<string, string> = {};
+  parsed.searchParams.forEach((value, key) => {
+    query[key] = value;
+  });
+  return { pathname: parsed.pathname, query };
+}
+
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
-    const parsedUrl = parse(req.url!, true);
+    const parsedUrl = parseUrl(req.url!);
     handle(req, res, parsedUrl);
   });
 
