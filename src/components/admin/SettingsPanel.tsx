@@ -76,7 +76,7 @@ export default function SettingsPanel() {
       {/* Logo section */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-base font-semibold text-gray-900">
-          Logo de la collectivite
+          Logo de l'application
         </h3>
         <p className="mb-4 text-sm text-gray-500">
           Ce logo sera affiche sur l&apos;ecran public (Chromecast). Formats acceptes : PNG, JPG, SVG, WebP (max 2 Mo).
