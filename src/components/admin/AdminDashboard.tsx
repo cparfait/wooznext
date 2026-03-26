@@ -5,9 +5,10 @@ import { signOut } from 'next-auth/react';
 import StatsPanel from './StatsPanel';
 import ServicesPanel from './ServicesPanel';
 import AgentsPanel from './AgentsPanel';
+import CountersPanel from './CountersPanel';
 import SettingsPanel from './SettingsPanel';
 
-type Tab = 'stats' | 'services' | 'agents' | 'settings';
+type Tab = 'stats' | 'services' | 'agents' | 'counters' | 'settings';
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('stats');
@@ -16,6 +17,7 @@ export default function AdminDashboard() {
     { key: 'stats', label: 'Statistiques' },
     { key: 'services', label: 'Services' },
     { key: 'agents', label: 'Agents' },
+    { key: 'counters', label: 'Guichets' },
     { key: 'settings', label: 'Parametres' },
   ];
 
@@ -58,6 +60,7 @@ export default function AdminDashboard() {
         {tab === 'stats' && <StatsPanel />}
         {tab === 'services' && <ServicesPanel />}
         {tab === 'agents' && <AgentsPanel />}
+        {tab === 'counters' && <CountersPanel />}
         {tab === 'settings' && <SettingsPanel />}
       </div>
     </main>

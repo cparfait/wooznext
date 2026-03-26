@@ -26,6 +26,12 @@ export default function AgentsPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'AGENT', serviceId: '', password: '' });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+
   useEffect(() => {
     fetchAgents();
     fetchServices();
@@ -73,6 +79,55 @@ export default function AgentsPanel() {
       body: JSON.stringify({ isActive: !isActive }),
     });
     await fetchAgents();
+  }
+
+  function startEdit(agent: Agent) {
+    setEditingId(agent.id);
+    setEditForm({
+      name: agent.name,
+      email: agent.email,
+      role: agent.role,
+      serviceId: agent.serviceId || '',
+      password: '',
+    });
+    setEditError('');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError('');
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    setEditError('');
+    setEditLoading(true);
+
+    const payload: Record<string, unknown> = {
+      name: editForm.name,
+      email: editForm.email,
+      role: editForm.role,
+      serviceId: editForm.serviceId || null,
+    };
+    if (editForm.password) {
+      payload.password = editForm.password;
+    }
+
+    const res = await fetch(`/api/admin/agents/${editingId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      setEditingId(null);
+      await fetchAgents();
+    } else {
+      const data = await res.json();
+      setEditError(data.error || 'Erreur');
+    }
+    setEditLoading(false);
   }
 
   return (
@@ -154,35 +209,113 @@ export default function AgentsPanel() {
       {/* Agent list */}
       <div className="space-y-2">
         {agents.map((a) => (
-          <div
-            key={a.id}
-            className={`flex items-center justify-between rounded-xl bg-white p-4 shadow-sm ${
-              !a.isActive ? 'opacity-50' : ''
-            }`}
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">{a.name}</span>
-                <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                  a.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {a.role}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">
-                {a.email} {a.service ? `- ${a.service.name}` : ''}
-              </p>
-            </div>
-            <button
-              onClick={() => toggleActive(a.id, a.isActive)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                a.isActive
-                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                  : 'bg-green-50 text-green-600 hover:bg-green-100'
-              }`}
+          <div key={a.id}>
+            <div
+              className={`flex items-center justify-between rounded-xl bg-white p-4 shadow-sm ${
+                !a.isActive ? 'opacity-50' : ''
+              } ${editingId === a.id ? 'rounded-b-none' : ''}`}
             >
-              {a.isActive ? 'Desactiver' : 'Activer'}
-            </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">{a.name}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                    a.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {a.role}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {a.email} {a.service ? `- ${a.service.name}` : ''}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => editingId === a.id ? cancelEdit() : startEdit(a)}
+                  className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  {editingId === a.id ? 'Fermer' : 'Modifier'}
+                </button>
+                <button
+                  onClick={() => toggleActive(a.id, a.isActive)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    a.isActive
+                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'bg-green-50 text-green-600 hover:bg-green-100'
+                  }`}
+                >
+                  {a.isActive ? 'Desactiver' : 'Activer'}
+                </button>
+              </div>
+            </div>
+
+            {/* Inline edit form */}
+            {editingId === a.id && (
+              <form
+                onSubmit={handleEdit}
+                className="space-y-3 rounded-b-xl border-t border-gray-100 bg-gray-50 p-4"
+              >
+                {editError && <p className="text-sm text-red-600">{editError}</p>}
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="Nom"
+                  required
+                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                />
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  placeholder="Email"
+                  required
+                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                />
+                <input
+                  type="password"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  placeholder="Nouveau mot de passe (laisser vide pour ne pas changer)"
+                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                />
+                <div className="flex gap-3">
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  >
+                    <option value="AGENT">Agent</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <select
+                    value={editForm.serviceId}
+                    onChange={(e) => setEditForm({ ...editForm, serviceId: e.target.value })}
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  >
+                    <option value="">Aucun service</option>
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    className="flex-1 rounded-lg border border-gray-300 bg-white py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="flex-1 rounded-lg bg-primary-500 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+                  >
+                    {editLoading ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         ))}
       </div>

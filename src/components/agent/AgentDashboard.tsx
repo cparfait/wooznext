@@ -7,6 +7,7 @@ import { useServiceSocket } from '@/hooks/useSocket';
 import BottomSheet from './BottomSheet';
 import ConfirmModal from './ConfirmModal';
 import AddTicketModal from './AddTicketModal';
+import PasswordChangeModal from './PasswordChangeModal';
 
 interface Ticket {
   id: string;
@@ -39,6 +40,7 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [returnTicket, setReturnTicket] = useState<Ticket | null>(null);
   const [showAddTicket, setShowAddTicket] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const refreshQueue = useCallback(async () => {
     try {
@@ -155,12 +157,20 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
             <p className="text-sm font-medium text-gray-800">{user.name}</p>
             <p className="text-xs text-gray-600">{user.serviceName}</p>
           </div>
-          <button
-            onClick={() => signOut({ callbackUrl: '/agent/login' })}
-            className="rounded-lg px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300"
-          >
-            Deconnexion
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowPasswordChange(true)}
+              className="rounded-lg px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300"
+            >
+              Mot de passe
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: '/agent/login' })}
+              className="rounded-lg px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300"
+            >
+              Deconnexion
+            </button>
+          </div>
         </div>
       </div>
 
@@ -168,11 +178,21 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
       <div className="flex flex-1 flex-col items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6 text-center">
           {/* Waiting count banner */}
-          <p className="text-sm text-gray-600">
-            {stats.waitingCount === 0
-              ? 'Il n\'y a pas de visiteurs qui attendent'
-              : `Il y a ${stats.waitingCount} visiteur${stats.waitingCount > 1 ? 's' : ''} qui attend${stats.waitingCount > 1 ? 'ent' : ''}`}
-          </p>
+          {stats.waitingCount > 0 ? (
+            <div className="rounded-2xl bg-orange-500 p-4 text-center text-white shadow-lg">
+              <div className="flex items-center justify-center gap-3">
+                <span className="h-3 w-3 animate-pulse rounded-full bg-white"></span>
+                <span className="text-3xl font-black">{stats.waitingCount}</span>
+                <span className="text-lg font-medium">
+                  ticket{stats.waitingCount > 1 ? 's' : ''} en attente
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-gray-300/50 p-4 text-center">
+              <span className="text-sm font-medium text-gray-600">Aucun ticket en attente</span>
+            </div>
+          )}
 
           {/* Current serving */}
           <div className="space-y-2">
@@ -266,6 +286,12 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
         serviceId={user.serviceId}
         onClose={() => setShowAddTicket(false)}
         onCreated={refreshQueue}
+      />
+
+      {/* Password change modal */}
+      <PasswordChangeModal
+        visible={showPasswordChange}
+        onClose={() => setShowPasswordChange(false)}
       />
     </main>
   );

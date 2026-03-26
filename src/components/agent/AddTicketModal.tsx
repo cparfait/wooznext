@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 
+interface CreatedTicket {
+  displayCode: string;
+  isExisting: boolean;
+}
+
 interface AddTicketModalProps {
   visible: boolean;
   serviceId: string | null;
@@ -18,8 +23,19 @@ export default function AddTicketModal({
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [createdTicket, setCreatedTicket] = useState<CreatedTicket | null>(null);
 
   if (!visible) return null;
+
+  function handleClose() {
+    setPhone('');
+    setError('');
+    setCreatedTicket(null);
+    if (createdTicket) {
+      onCreated();
+    }
+    onClose();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,12 +61,49 @@ export default function AddTicketModal({
 
       setPhone('');
       setLoading(false);
-      onCreated();
-      onClose();
+      setCreatedTicket({
+        displayCode: data.ticket?.displayCode ?? data.displayCode ?? '---',
+        isExisting: !!data.isExisting,
+      });
     } catch {
       setError('Erreur de connexion');
       setLoading(false);
     }
+  }
+
+  // Success view after ticket creation
+  if (createdTicket) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <div className="space-y-4 text-center">
+            <div className="rounded-xl bg-green-50 p-6">
+              <span className="text-4xl font-black text-gray-900">
+                {createdTicket.displayCode}
+              </span>
+            </div>
+
+            <p className="text-lg font-semibold text-green-600">
+              Ticket cree avec succes
+            </p>
+
+            {createdTicket.isExisting && (
+              <p className="text-sm text-orange-600">
+                Ce numero a deja un ticket actif
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-600"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -82,7 +135,7 @@ export default function AddTicketModal({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => { setPhone(''); setError(''); onClose(); }}
+              onClick={handleClose}
               className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
             >
               Annuler
