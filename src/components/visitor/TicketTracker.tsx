@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTicketSocket } from '@/hooks/useSocket';
 import CelebrationPopup from './CelebrationPopup';
 
@@ -26,9 +26,21 @@ export default function TicketTracker({
   const [position, setPosition] = useState(initialPosition);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isCurrent = ticket.status === 'SERVING';
   const isFinished = ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' || ticket.status === 'NO_SHOW';
+
+  useEffect(() => {
+    audioRef.current = new Audio('/sounds/ding.wav');
+  }, []);
+
+  const playSound = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+  }, []);
 
   const refreshTicket = useCallback(async () => {
     try {
@@ -44,6 +56,7 @@ export default function TicketTracker({
 
   useTicketSocket(ticketId, useCallback((event: string) => {
     if (event === 'ticket:called') {
+      playSound();
       setShowCelebration(true);
       refreshTicket();
     } else if (event === 'ticket:completed' || event === 'ticket:no-show') {
@@ -52,7 +65,7 @@ export default function TicketTracker({
       setShowCelebration(false);
       refreshTicket();
     }
-  }, [refreshTicket]));
+  }, [refreshTicket, playSound]));
 
   useEffect(() => {
     if (ticket.status !== 'WAITING') return;
@@ -61,8 +74,11 @@ export default function TicketTracker({
   }, [ticket.status, refreshTicket]);
 
   useEffect(() => {
-    if (isCurrent) setShowCelebration(true);
-  }, [isCurrent]);
+    if (isCurrent) {
+      playSound();
+      setShowCelebration(true);
+    }
+  }, [isCurrent, playSound]);
 
   async function handleLeave() {
     try {
@@ -83,7 +99,7 @@ export default function TicketTracker({
   // --- Visite terminee ---
   if (isFinished) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
+      <div className="flex min-h-svh flex-col items-center justify-center bg-gray-50 px-6">
         <div className="w-full max-w-sm space-y-6 text-center">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary-50">
             <svg className="h-10 w-10 text-primary-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -103,23 +119,21 @@ export default function TicketTracker({
   // --- En cours d'appel ---
   if (isCurrent) {
     return (
-      <div className="flex min-h-screen flex-col bg-primary-700">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6">
+      <div className="flex min-h-svh flex-col bg-primary-700">
+        <div className="px-5 pt-5">
           <p className="text-sm font-medium text-primary-200">
             {ticket.service.name}
           </p>
         </div>
 
-        {/* Contenu principal */}
-        <div className="flex flex-1 flex-col items-center justify-center px-6">
-          <p className="text-lg font-semibold uppercase tracking-widest text-accent-400">
+        <div className="flex flex-1 flex-col items-center justify-center px-5">
+          <p className="text-base font-semibold uppercase tracking-widest text-accent-400 sm:text-lg">
             C&apos;est votre tour
           </p>
-          <p className="mt-4 text-8xl font-black tracking-wider text-white sm:text-9xl">
+          <p className="mt-3 text-7xl font-black tracking-wider text-white sm:text-9xl">
             #{ticket.displayCode}
           </p>
-          <p className="mt-6 text-lg text-primary-200">
+          <p className="mt-5 text-base text-primary-200 sm:text-lg">
             Veuillez vous presenter au guichet
           </p>
         </div>
@@ -134,9 +148,9 @@ export default function TicketTracker({
 
   // --- En attente ---
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex min-h-svh flex-col bg-gray-50">
       {/* Header */}
-      <div className="px-6 pt-6">
+      <div className="px-5 pt-5">
         <p className="text-sm font-medium text-gray-500">
           <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-primary-500" />
           {ticket.service.name}
@@ -144,32 +158,32 @@ export default function TicketTracker({
       </div>
 
       {/* Contenu principal */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
+      <div className="flex flex-1 flex-col items-center justify-center px-5">
         {/* Numero du ticket */}
-        <div className="w-full max-w-xs rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
-          <p className="text-sm font-medium uppercase tracking-wider text-gray-400">
+        <div className="w-full max-w-[280px] rounded-3xl bg-white p-6 text-center shadow-sm ring-1 ring-gray-100 sm:max-w-xs sm:p-8">
+          <p className="text-xs font-medium uppercase tracking-wider text-gray-400 sm:text-sm">
             Votre ticket
           </p>
-          <p className="mt-2 text-6xl font-black tracking-wider text-gray-900 sm:text-7xl">
+          <p className="mt-2 text-5xl font-black tracking-wider text-gray-900 sm:text-7xl">
             #{ticket.displayCode}
           </p>
         </div>
 
         {/* Position dans la file */}
-        <div className="mt-8 text-center">
-          <p className="text-7xl font-black text-primary-700 sm:text-8xl">
-            {position}<span className="text-4xl align-top sm:text-5xl">e</span>
+        <div className="mt-6 text-center sm:mt-8">
+          <p className="text-6xl font-black text-primary-700 sm:text-8xl">
+            {position}<span className="text-3xl align-top sm:text-5xl">e</span>
           </p>
-          <p className="mt-1 text-lg font-semibold text-gray-700">
+          <p className="mt-1 text-base font-semibold text-gray-700 sm:text-lg">
             dans la file
           </p>
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="mt-1.5 text-sm text-gray-400">
             {getPositionMessage()}
           </p>
         </div>
 
         {/* Barre de progression */}
-        <div className="mt-8 w-full max-w-xs">
+        <div className="mt-6 w-full max-w-[280px] sm:mt-8 sm:max-w-xs">
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
             <div
               className="h-full rounded-full bg-primary-500 transition-all duration-1000 ease-out"
@@ -180,33 +194,31 @@ export default function TicketTracker({
       </div>
 
       {/* Bouton quitter */}
-      <div className="px-6 pb-8">
+      <div className="flex flex-col items-center px-5 pb-6">
         {!showLeaveConfirm ? (
           <button
             onClick={() => setShowLeaveConfirm(true)}
-            className="w-full rounded-2xl bg-white py-4 text-center text-sm font-medium text-gray-400 shadow-sm ring-1 ring-gray-100 transition-colors hover:bg-gray-50"
+            className="rounded-2xl px-8 py-3 text-sm font-medium text-gray-400 transition-colors hover:text-gray-500"
           >
             Quitter la file d&apos;attente
           </button>
         ) : (
-          <div className="space-y-3">
+          <div className="w-full max-w-[280px] space-y-3 sm:max-w-xs">
             <p className="text-center text-sm text-gray-600">
               Etes-vous sur de vouloir quitter la file ?
             </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleLeave}
-                className="flex-1 rounded-xl bg-red-500 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-red-600"
-              >
-                Oui, quitter
-              </button>
-              <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="flex-1 rounded-xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-600 transition-colors hover:bg-gray-200"
-              >
-                Annuler
-              </button>
-            </div>
+            <button
+              onClick={handleLeave}
+              className="w-full rounded-xl bg-red-500 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-red-600"
+            >
+              Oui, quitter
+            </button>
+            <button
+              onClick={() => setShowLeaveConfirm(false)}
+              className="w-full rounded-xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-600 transition-colors hover:bg-gray-200"
+            >
+              Annuler
+            </button>
           </div>
         )}
       </div>
