@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createTicket } from '@/lib/services/ticket.service';
 import { emitQueueUpdate } from '@/lib/socket-emitter';
-import { prisma } from '@/lib/prisma';
 
 const createTicketSchema = z.object({
   phone: z
@@ -10,7 +9,7 @@ const createTicketSchema = z.object({
     .min(10, 'Numéro de téléphone invalide')
     .max(15)
     .regex(/^[0-9+\s-]+$/, 'Format de numéro invalide'),
-  serviceId: z.string().optional(),
+  serviceId: z.string().min(1, 'Service requis'),
 });
 
 export async function POST(req: NextRequest) {
@@ -25,22 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let { phone, serviceId } = parsed.data;
-
-    // Si pas de serviceId fourni, prendre le premier service disponible
-    if (!serviceId) {
-      const firstService = await prisma.service.findFirst({
-        orderBy: { createdAt: 'asc' },
-      });
-      if (!firstService) {
-        return NextResponse.json(
-          { error: 'Aucun service disponible' },
-          { status: 400 }
-        );
-      }
-      serviceId = firstService.id;
-    }
-
+    const { phone, serviceId } = parsed.data;
     const { ticket, isExisting } = await createTicket(phone, serviceId);
 
     if (!isExisting) {

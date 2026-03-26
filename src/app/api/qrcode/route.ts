@@ -1,9 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
-    const url = req.nextUrl.searchParams.get('url') || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const serviceId = req.nextUrl.searchParams.get('serviceId');
+    const baseUrl = req.nextUrl.searchParams.get('url') || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
+    if (!serviceId) {
+      // Sans serviceId, lister les services disponibles
+      const services = await prisma.service.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, prefix: true },
+      });
+
+      return NextResponse.json({
+        message: 'Ajoutez ?serviceId=ID pour generer un QR code',
+        services: services.map((s) => ({
+          id: s.id,
+          name: s.name,
+          prefix: s.prefix,
+          qrUrl: `${baseUrl}/api/qrcode?serviceId=${s.id}`,
+        })),
+      });
+    }
+
+    const url = `${baseUrl}/?service=${serviceId}`;
 
     const svg = await QRCode.toString(url, {
       type: 'svg',

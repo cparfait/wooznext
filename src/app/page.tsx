@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import TicketForm from '@/components/visitor/TicketForm';
 
 export default function HomePage() {
@@ -13,7 +14,9 @@ export default function HomePage() {
           </p>
         </div>
 
-        <TicketForm />
+        <Suspense fallback={<div className="text-gray-400">Chargement...</div>}>
+          <TicketForm />
+        </Suspense>
       </div>
     </main>
   );

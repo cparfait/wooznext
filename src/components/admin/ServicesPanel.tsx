@@ -148,6 +148,9 @@ export default function ServicesPanel() {
   const [expandedHours, setExpandedHours] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPrefix, setEditPrefix] = useState('');
 
   const fetchServices = useCallback(async () => {
     const res = await fetch('/api/admin/services');
@@ -200,6 +203,24 @@ export default function ServicesPanel() {
     }
   }
 
+  function startEdit(s: Service) {
+    setEditingId(s.id);
+    setEditName(s.name);
+    setEditPrefix(s.prefix);
+  }
+
+  async function handleEdit(id: string) {
+    const res = await fetch(`/api/admin/services/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editName, prefix: editPrefix }),
+    });
+    if (res.ok) {
+      setEditingId(null);
+      await fetchServices();
+    }
+  }
+
   function toggleHours(id: string) {
     setExpandedHours((prev) => (prev === id ? null : id));
   }
@@ -240,66 +261,109 @@ export default function ServicesPanel() {
             key={s.id}
             className={`rounded-xl bg-white p-4 shadow-sm ${!s.isActive ? 'opacity-50' : ''}`}
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-medium text-gray-900">{s.name}</span>
-                {s.prefix && <span className="ml-2 text-xs text-gray-400">({s.prefix})</span>}
-                <p className="text-xs text-gray-500">
-                  {s._count.agents} agent(s) - {s._count.counters} guichet(s)
-                </p>
+            {editingId === s.id ? (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Nom du service"
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={editPrefix}
+                    onChange={(e) => setEditPrefix(e.target.value)}
+                    placeholder="Prefixe"
+                    maxLength={5}
+                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(s.id)}
+                    disabled={!editName.trim()}
+                    className="rounded-lg bg-primary-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+                  >
+                    Enregistrer
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg bg-gray-100 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                  >
+                    Annuler
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleHours(s.id)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                    expandedHours === s.id
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Horaires
-                </button>
-                <button
-                  onClick={() => toggleActive(s.id, s.isActive)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                    s.isActive
-                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                      : 'bg-green-50 text-green-600 hover:bg-green-100'
-                  }`}
-                >
-                  {s.isActive ? 'Desactiver' : 'Activer'}
-                </button>
-                {deleteConfirm === s.id ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleDelete(s.id)}
-                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
-                    >
-                      Confirmer
-                    </button>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-medium text-gray-900">{s.name}</span>
+                  {s.prefix && <span className="ml-2 text-xs text-gray-400">({s.prefix})</span>}
+                  <p className="text-xs text-gray-500">
+                    {s._count.agents} agent(s) - {s._count.counters} guichet(s)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => startEdit(s)}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => toggleHours(s.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                      expandedHours === s.id
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Horaires
+                  </button>
+                  <button
+                    onClick={() => toggleActive(s.id, s.isActive)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                      s.isActive
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                        : 'bg-green-50 text-green-600 hover:bg-green-100'
+                    }`}
+                  >
+                    {s.isActive ? 'Desactiver' : 'Activer'}
+                  </button>
+                  {deleteConfirm === s.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDelete(s.id)}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                      >
+                        Confirmer
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteConfirm(null);
+                          setDeleteError(null);
+                        }}
+                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       onClick={() => {
-                        setDeleteConfirm(null);
+                        setDeleteConfirm(s.id);
                         setDeleteError(null);
                       }}
-                      className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
                     >
-                      Annuler
+                      Supprimer
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setDeleteConfirm(s.id);
-                      setDeleteError(null);
-                    }}
-                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                  >
-                    Supprimer
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Delete error message */}
             {deleteError && deleteConfirm === s.id && (
