@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useServiceSocket } from '@/hooks/useSocket';
 
 interface DisplayData {
@@ -22,6 +22,18 @@ export default function PublicDisplay({
 }: PublicDisplayProps) {
   const [data, setData] = useState<DisplayData>(initialData);
   const [flash, setFlash] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio('/sounds/ding.wav');
+  }, []);
+
+  const playNotificationSound = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+  }, []);
 
   const refreshData = useCallback(async () => {
     try {
@@ -29,9 +41,10 @@ export default function PublicDisplay({
       if (!res.ok) return;
       const newData = await res.json();
 
-      // Flash animation when current ticket changes
+      // Flash animation + sound when current ticket changes
       if (newData.currentCode && newData.currentCode !== data.currentCode) {
         setFlash(true);
+        playNotificationSound();
         setTimeout(() => setFlash(false), 2000);
       }
 
@@ -39,7 +52,7 @@ export default function PublicDisplay({
     } catch {
       // Silent fail
     }
-  }, [serviceId, data.currentCode]);
+  }, [serviceId, data.currentCode, playNotificationSound]);
 
   // Real-time updates
   useServiceSocket(serviceId, useCallback(() => {
