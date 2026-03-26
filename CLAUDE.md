@@ -1,4 +1,4 @@
-# CLAUDE.md — Mémoire du projet cparfait
+# CLAUDE.md — Mémoire du projet wooznext
 
 > Fichier de référence pour l'assistant IA. Contient toutes les règles, contraintes et décisions d'architecture à respecter tout au long du développement.
 

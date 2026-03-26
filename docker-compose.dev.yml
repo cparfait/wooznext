@@ -6,15 +6,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: cparfait
-      POSTGRES_USER: cparfait
-      POSTGRES_PASSWORD: cparfait_dev
+      POSTGRES_DB: wooznext
+      POSTGRES_USER: wooznext
+      POSTGRES_PASSWORD: wooznext_dev
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cparfait"]
+      test: ["CMD-SHELL", "pg_isready -U wooznext"]
       interval: 5s
       timeout: 5s
       retries: 5

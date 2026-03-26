@@ -38,7 +38,7 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 ### 1. Cloner le projet
 
 ```bash
-git clone https://github.com/cparfait/wooznext.git
+git clone https://github.com/wooznext/wooznext.git
 cd wooznext
 ```
 
@@ -51,7 +51,7 @@ cp .env.example .env
 Editez le fichier `.env` :
 
 ```env
-DATABASE_URL=postgresql://cparfait:cparfait_dev@localhost:5432/cparfait
+DATABASE_URL=postgresql://wooznext:wooznext_dev@localhost:5432/wooznext
 NEXTAUTH_SECRET=votre_secret_ici
 NEXTAUTH_URL=http://localhost:3000
 ```
@@ -129,7 +129,7 @@ curl -fsSL https://get.docker.com | sh
 ### 2. Cloner et configurer
 
 ```bash
-git clone https://github.com/cparfait/wooznext.git
+git clone https://github.com/wooznext/wooznext.git
 cd wooznext
 cp .env.example .env
 ```
@@ -137,7 +137,7 @@ cp .env.example .env
 Editez `.env` avec des valeurs de production :
 
 ```env
-DATABASE_URL=postgresql://cparfait:MOT_DE_PASSE_FORT@db:5432/cparfait
+DATABASE_URL=postgresql://wooznext:MOT_DE_PASSE_FORT@db:5432/wooznext
 DB_PASSWORD=MOT_DE_PASSE_FORT
 NEXTAUTH_SECRET=secret_genere_avec_openssl
 NEXTAUTH_URL=https://votre-domaine.fr
