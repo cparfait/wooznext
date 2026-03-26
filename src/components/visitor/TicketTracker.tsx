@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTicketSocket } from '@/hooks/useSocket';
-import ProgressCircle from './ProgressCircle';
 import CelebrationPopup from './CelebrationPopup';
 
 interface TicketData {
@@ -31,7 +30,6 @@ export default function TicketTracker({
   const isCurrent = ticket.status === 'SERVING';
   const isFinished = ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' || ticket.status === 'NO_SHOW';
 
-  // Refresh ticket data from API
   const refreshTicket = useCallback(async () => {
     try {
       const res = await fetch(`/api/tickets/${ticketId}`);
@@ -40,11 +38,10 @@ export default function TicketTracker({
       setTicket(data.ticket);
       setPosition(data.position);
     } catch {
-      // Silently fail, will retry on next event
+      // Silently fail
     }
   }, [ticketId]);
 
-  // Socket.IO events
   useTicketSocket(ticketId, useCallback((event: string) => {
     if (event === 'ticket:called') {
       setShowCelebration(true);
@@ -57,14 +54,12 @@ export default function TicketTracker({
     }
   }, [refreshTicket]));
 
-  // Also listen for queue updates to refresh position
   useEffect(() => {
     if (ticket.status !== 'WAITING') return;
     const interval = setInterval(refreshTicket, 15000);
     return () => clearInterval(interval);
   }, [ticket.status, refreshTicket]);
 
-  // Show celebration on mount if already being served
   useEffect(() => {
     if (isCurrent) setShowCelebration(true);
   }, [isCurrent]);
@@ -79,61 +74,121 @@ export default function TicketTracker({
     setShowLeaveConfirm(false);
   }
 
+  function getPositionMessage(): string {
+    if (position === 1) return 'Vous etes le prochain !';
+    if (position <= 3) return 'Plus que quelques instants...';
+    return `${position - 1} personne${position > 2 ? 's' : ''} avant vous`;
+  }
+
+  // --- Visite terminee ---
   if (isFinished) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
         <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
-            <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary-50">
+            <svg className="h-10 w-10 text-primary-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Visite terminee
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Visite terminee</h1>
           <p className="text-gray-500">
             Votre ticket <strong className="text-gray-900">#{ticket.displayCode}</strong> est cloture.
           </p>
-          <p className="text-sm text-gray-400">
-            Merci de votre visite.
-          </p>
+          <p className="text-sm text-gray-400">Merci de votre visite.</p>
         </div>
       </div>
     );
   }
 
+  // --- En cours d'appel ---
+  if (isCurrent) {
+    return (
+      <div className="flex min-h-screen flex-col bg-primary-700">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6">
+          <p className="text-sm font-medium text-primary-200">
+            {ticket.service.name}
+          </p>
+        </div>
+
+        {/* Contenu principal */}
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
+          <p className="text-lg font-semibold uppercase tracking-widest text-accent-400">
+            C&apos;est votre tour
+          </p>
+          <p className="mt-4 text-8xl font-black tracking-wider text-white sm:text-9xl">
+            #{ticket.displayCode}
+          </p>
+          <p className="mt-6 text-lg text-primary-200">
+            Veuillez vous presenter au guichet
+          </p>
+        </div>
+
+        <CelebrationPopup
+          visible={showCelebration}
+          onClose={() => setShowCelebration(false)}
+        />
+      </div>
+    );
+  }
+
+  // --- En attente ---
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* Header with service name */}
+      {/* Header */}
       <div className="px-6 pt-6">
-        <p className="text-sm font-medium text-gray-900">
-          <span className="mr-1.5 inline-block text-primary-500">&#9679;</span>
+        <p className="text-sm font-medium text-gray-500">
+          <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-primary-500" />
           {ticket.service.name}
         </p>
       </div>
 
-      {/* Main circle area - centered */}
-      <div className="flex flex-1 items-center justify-center px-4">
-        <ProgressCircle
-          position={position}
-          total={position}
-          isCurrent={isCurrent}
-          displayCode={ticket.displayCode}
-        />
+      {/* Contenu principal */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6">
+        {/* Numero du ticket */}
+        <div className="w-full max-w-xs rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
+          <p className="text-sm font-medium uppercase tracking-wider text-gray-400">
+            Votre ticket
+          </p>
+          <p className="mt-2 text-6xl font-black tracking-wider text-gray-900 sm:text-7xl">
+            #{ticket.displayCode}
+          </p>
+        </div>
+
+        {/* Position dans la file */}
+        <div className="mt-8 text-center">
+          <p className="text-7xl font-black text-primary-700 sm:text-8xl">
+            {position}<span className="text-4xl align-top sm:text-5xl">e</span>
+          </p>
+          <p className="mt-1 text-lg font-semibold text-gray-700">
+            dans la file
+          </p>
+          <p className="mt-2 text-sm text-gray-400">
+            {getPositionMessage()}
+          </p>
+        </div>
+
+        {/* Barre de progression */}
+        <div className="mt-8 w-full max-w-xs">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full rounded-full bg-primary-500 transition-all duration-1000 ease-out"
+              style={{ width: position === 1 ? '90%' : position <= 3 ? '60%' : position <= 5 ? '30%' : '10%' }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Bottom buttons */}
-      <div className="space-y-3 px-6 pb-8">
-        {ticket.status === 'WAITING' && !showLeaveConfirm && (
+      {/* Bouton quitter */}
+      <div className="px-6 pb-8">
+        {!showLeaveConfirm ? (
           <button
             onClick={() => setShowLeaveConfirm(true)}
-            className="w-full rounded-xl bg-gray-100 py-4 text-center text-base font-medium text-gray-500 transition-colors hover:bg-gray-200"
+            className="w-full rounded-2xl bg-white py-4 text-center text-sm font-medium text-gray-400 shadow-sm ring-1 ring-gray-100 transition-colors hover:bg-gray-50"
           >
             Quitter la file d&apos;attente
           </button>
-        )}
-
-        {showLeaveConfirm && (
+        ) : (
           <div className="space-y-3">
             <p className="text-center text-sm text-gray-600">
               Etes-vous sur de vouloir quitter la file ?
