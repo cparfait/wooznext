@@ -26,6 +26,7 @@ export default function TicketTracker({
   const [position, setPosition] = useState(initialPosition);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isCurrent = ticket.status === 'SERVING';
@@ -33,6 +34,9 @@ export default function TicketTracker({
 
   useEffect(() => {
     audioRef.current = new Audio('/sounds/ding.wav');
+    fetch('/api/logo').then((res) => {
+      if (res.ok) setLogoUrl('/api/logo');
+    }).catch(() => {});
   }, []);
 
   const playSound = useCallback(() => {
@@ -151,6 +155,12 @@ export default function TicketTracker({
     <div className="flex min-h-svh flex-col bg-gray-50">
       {/* Contenu principal */}
       <div className="flex flex-1 flex-col items-center justify-center px-5">
+        {/* Logo */}
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="Logo" className="mb-6 h-14 w-auto object-contain sm:h-16" />
+        )}
+
         {/* Numero du ticket */}
         <div className="w-full max-w-[280px] rounded-3xl bg-white p-6 text-center shadow-sm ring-1 ring-gray-100 sm:max-w-xs sm:p-8">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-400 sm:text-sm">
