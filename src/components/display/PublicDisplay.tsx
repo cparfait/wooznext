@@ -22,10 +22,20 @@ export default function PublicDisplay({
 }: PublicDisplayProps) {
   const [data, setData] = useState<DisplayData>(initialData);
   const [flash, setFlash] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     audioRef.current = new Audio('/sounds/ding.wav');
+  }, []);
+
+  // Load logo
+  useEffect(() => {
+    fetch('/api/logo')
+      .then((res) => {
+        if (res.ok) setLogoUrl('/api/logo');
+      })
+      .catch(() => {});
   }, []);
 
   const playNotificationSound = useCallback(() => {
@@ -90,10 +100,19 @@ export default function PublicDisplay({
       {/* Header bar */}
       <header className="flex items-center justify-between px-10 py-6">
         <div className="flex items-center gap-4">
-          <div className="h-3 w-3 rounded-full bg-green-400 animate-pulse-soft" />
-          <span className="text-lg font-medium text-primary-200">
-            File active
-          </span>
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="h-14 w-auto object-contain"
+            />
+          )}
+          <div className="flex items-center gap-3">
+            <div className="h-3 w-3 rounded-full bg-accent-500 animate-pulse-soft" />
+            <span className="text-lg font-medium text-primary-200">
+              File active
+            </span>
+          </div>
         </div>
         {serviceName && (
           <h2 className="text-2xl font-bold tracking-wide text-white">
@@ -119,7 +138,7 @@ export default function PublicDisplay({
                 className={`font-black leading-none tracking-wider transition-all duration-500 ${
                   data.currentCode
                     ? flash
-                      ? 'text-[14rem] scale-105 text-white'
+                      ? 'text-[14rem] scale-105 text-accent-400'
                       : 'text-[14rem] scale-100 text-white'
                     : 'text-[10rem] text-white/30'
                 }`}
@@ -127,7 +146,7 @@ export default function PublicDisplay({
                 {data.currentCode ?? '---'}
               </p>
               {flash && (
-                <div className="absolute inset-0 rounded-3xl bg-white/10 animate-slide-up" />
+                <div className="absolute inset-0 rounded-3xl bg-accent-500/10 animate-slide-up" />
               )}
             </div>
           </div>

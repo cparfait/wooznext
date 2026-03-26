@@ -34,5 +34,8 @@ Thumbs.db
 postgres_data/
 postgres_dev_data/
 
+# Uploads (logos, etc.)
+data/
+
 # Divers
 *.tsbuildinfo
