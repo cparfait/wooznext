@@ -1,14 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { TicketStatus } from '@prisma/client';
-import { formatTicketNumber } from '@/lib/utils';
+import { formatTicketNumber, hashPhone } from '@/lib/utils';
 
 /**
  * Find an active ticket (WAITING or SERVING) for a given phone number.
  */
 export async function findActiveTicketByPhone(phone: string) {
+  const phoneHash = hashPhone(phone);
   return prisma.ticket.findFirst({
     where: {
-      visitor: { phone },
+      visitor: { phone: phoneHash },
       status: { in: [TicketStatus.WAITING, TicketStatus.SERVING] },
     },
     include: {
@@ -57,10 +58,11 @@ export async function createTicket(phone: string, serviceId: string) {
     return { ticket: existing, isExisting: true };
   }
 
-  // Get or create visitor
+  // Get or create visitor (phone stored as hash for RGPD compliance)
+  const phoneHash = hashPhone(phone);
   const visitor = await prisma.visitor.upsert({
-    where: { phone },
-    create: { phone },
+    where: { phone: phoneHash },
+    create: { phone: phoneHash },
     update: {},
   });
 
