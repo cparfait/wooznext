@@ -157,6 +157,15 @@ function LoginForm() {
       return;
     }
 
+    // Vérifier que l'agent a un service assigné (sauf admin)
+    const session = await fetch('/api/auth/session').then((r) => r.json());
+    if (session?.user?.role === 'AGENT' && !session?.user?.serviceId) {
+      await import('next-auth/react').then(({ signOut }) => signOut({ redirect: false }));
+      setError('Votre compte n\'est pas rattaché à un service. Contactez l\'administrateur.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(false);
     setStep('counter');
   }
