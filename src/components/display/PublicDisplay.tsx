@@ -50,6 +50,7 @@ export default function PublicDisplay({
   const [flash, setFlash] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
+  const [tickerMessage, setTickerMessage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -63,6 +64,23 @@ export default function PublicDisplay({
         if (res.ok) setLogoUrl('/api/logo');
       })
       .catch(() => {});
+  }, []);
+
+  // Load ticker message
+  useEffect(() => {
+    async function loadTicker() {
+      try {
+        const res = await fetch('/api/admin/ticker');
+        if (!res.ok) return;
+        const json = await res.json();
+        setTickerMessage(json.message ?? null);
+      } catch {
+        // ignore
+      }
+    }
+    loadTicker();
+    const interval = setInterval(loadTicker, 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Load feed
@@ -142,7 +160,7 @@ export default function PublicDisplay({
 
   return (
     <main
-      className="flex h-screen cursor-pointer overflow-hidden bg-white"
+      className="relative flex h-screen cursor-pointer overflow-hidden bg-white"
       onClick={handleFullscreen}
     >
       {/* Zone principale */}
@@ -260,6 +278,16 @@ export default function PublicDisplay({
               ))}
             </div>
           </div>
+        </div>
+      )}
+      {/* Bandeau defilant — message urgent */}
+      {tickerMessage && (
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden bg-red-600 py-3">
+          <p
+            className="whitespace-nowrap text-lg font-bold text-white animate-ticker"
+          >
+            {tickerMessage}
+          </p>
         </div>
       )}
     </main>

@@ -11,10 +11,15 @@ export default function SettingsPanel() {
   const [feedSaved, setFeedSaved] = useState(false);
   const [feedMessage, setFeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
+  const [tickerText, setTickerText] = useState('');
+  const [tickerSaved, setTickerSaved] = useState(false);
+  const [tickerMessage, setTickerMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [tickerLoading, setTickerLoading] = useState(false);
 
   useEffect(() => {
     checkLogo();
     loadFeedUrl();
+    loadTicker();
   }, []);
 
   function checkLogo() {
@@ -95,6 +100,58 @@ export default function SettingsPanel() {
       setFeedMessage({ type: 'error', text: 'Erreur de connexion.' });
     } finally {
       setFeedLoading(false);
+    }
+  }
+
+  async function loadTicker() {
+    try {
+      const res = await fetch('/api/admin/ticker');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.message) {
+          setTickerText(data.message);
+          setTickerSaved(true);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleSaveTicker() {
+    setTickerLoading(true);
+    setTickerMessage(null);
+    try {
+      const res = await fetch('/api/admin/ticker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: tickerText }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTickerMessage({ type: 'success', text: 'Message enregistre.' });
+        setTickerSaved(true);
+      } else {
+        setTickerMessage({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setTickerMessage({ type: 'error', text: 'Erreur de connexion.' });
+    } finally {
+      setTickerLoading(false);
+    }
+  }
+
+  async function handleDeleteTicker() {
+    if (!confirm('Supprimer le message defilant ?')) return;
+    try {
+      const res = await fetch('/api/admin/ticker', { method: 'DELETE' });
+      if (res.ok) {
+        setTickerText('');
+        setTickerSaved(false);
+        setTickerMessage({ type: 'success', text: 'Message supprime.' });
+      }
+    } catch {
+      setTickerMessage({ type: 'error', text: 'Erreur lors de la suppression.' });
     }
   }
 
@@ -222,6 +279,49 @@ export default function SettingsPanel() {
             feedMessage.type === 'success' ? 'text-green-600' : 'text-red-600'
           }`}>
             {feedMessage.text}
+          </p>
+        )}
+      </div>
+
+      {/* Ticker message section */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <h3 className="mb-4 text-base font-semibold text-gray-900">
+          Message defilant (affichage public)
+        </h3>
+        <p className="mb-4 text-sm text-gray-500">
+          Message urgent qui defile en bas de l&apos;ecran public. Laissez vide pour ne rien afficher.
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={tickerText}
+            onChange={(e) => { setTickerText(e.target.value); setTickerSaved(false); }}
+            placeholder="Ex: Fermeture exceptionnelle a 16h aujourd'hui"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+          <button
+            onClick={handleSaveTicker}
+            disabled={tickerLoading || !tickerText || tickerSaved}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+          >
+            {tickerLoading ? 'Enregistrement...' : 'Publier'}
+          </button>
+          {tickerSaved && tickerText && (
+            <button
+              onClick={handleDeleteTicker}
+              className="rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+
+        {tickerMessage && (
+          <p className={`mt-3 text-sm ${
+            tickerMessage.type === 'success' ? 'text-green-600' : 'text-red-600'
+          }`}>
+            {tickerMessage.text}
           </p>
         )}
       </div>

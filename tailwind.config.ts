@@ -49,12 +49,17 @@ const config: Config = {
           '0%': { backgroundColor: 'rgba(174,200,12,0.3)' },
           '100%': { backgroundColor: 'transparent' },
         },
+        ticker: {
+          '0%': { transform: 'translateX(100vw)' },
+          '100%': { transform: 'translateX(-100%)' },
+        },
       },
       animation: {
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
         'slide-up': 'slide-up 0.5s ease-out',
         'slide-down': 'slide-down 0.4s ease-out',
         'flash-bg': 'flash-bg 2s ease-out',
+        ticker: 'ticker 20s linear infinite',
       },
     },
   },
