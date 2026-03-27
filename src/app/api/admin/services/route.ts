@@ -17,10 +17,28 @@ export async function GET() {
       orderBy: { name: 'asc' },
       include: {
         _count: { select: { agents: true, counters: true } },
+        counters: {
+          select: { id: true, agentId: true },
+        },
+        agents: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            counters: { select: { id: true } },
+          },
+        },
       },
     });
 
-    return NextResponse.json({ services });
+    // Add active counters count and connected agents count
+    const enriched = services.map((s) => {
+      const activeCounters = s.counters.filter((c) => c.agentId !== null).length;
+      const connectedAgents = s.agents.filter((a) => a.counters.length > 0).length;
+      const { counters: _c, agents: _a, ...rest } = s;
+      return { ...rest, activeCounters, connectedAgents };
+    });
+
+    return NextResponse.json({ services: enriched });
   } catch (error) {
     console.error('Error fetching services:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

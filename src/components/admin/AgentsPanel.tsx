@@ -26,6 +26,10 @@ export default function AgentsPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Delete state
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', role: 'AGENT', serviceId: '', password: '' });
@@ -79,6 +83,18 @@ export default function AgentsPanel() {
       body: JSON.stringify({ isActive: !isActive }),
     });
     await fetchAgents();
+  }
+
+  async function handleDelete(id: string) {
+    setDeleteError(null);
+    const res = await fetch(`/api/admin/agents/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setDeleteConfirm(null);
+      await fetchAgents();
+    } else {
+      const data = await res.json();
+      setDeleteError(data.error || 'Erreur lors de la suppression.');
+    }
   }
 
   function startEdit(agent: Agent) {
@@ -245,7 +261,33 @@ export default function AgentsPanel() {
                 >
                   {a.isActive ? 'Desactiver' : 'Activer'}
                 </button>
+                {deleteConfirm === a.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleDelete(a.id)}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                    >
+                      Confirmer
+                    </button>
+                    <button
+                      onClick={() => { setDeleteConfirm(null); setDeleteError(null); }}
+                      className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setDeleteConfirm(a.id); setDeleteError(null); }}
+                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                  >
+                    Supprimer
+                  </button>
+                )}
               </div>
+              {deleteError && deleteConfirm === a.id && (
+                <p className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>
+              )}
             </div>
 
             {/* Inline edit form */}

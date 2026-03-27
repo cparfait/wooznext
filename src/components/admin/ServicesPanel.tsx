@@ -10,6 +10,8 @@ interface Service {
   feedUrl: string | null;
   tickerMessage: string | null;
   _count: { agents: number; counters: number };
+  activeCounters: number;
+  connectedAgents: number;
 }
 
 interface DayHours {
@@ -322,7 +324,7 @@ function DisplaySettings({
               setFeedUrl(e.target.value);
               setFeedDirty(true);
             }}
-            placeholder="https://www.ville-chatillon.fr/actualites/json"
+            placeholder="https://url/json"
             className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none"
           />
           <button
@@ -560,18 +562,23 @@ export default function ServicesPanel() {
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-medium text-gray-900">{s.name}</span>
-                  {s.prefix && <span className="ml-2 text-xs text-gray-400">({s.prefix})</span>}
-                  <p className="text-xs text-gray-500">
-                    {s._count.agents} agent(s) - {s._count.counters} guichet(s)
-                    {s.feedUrl && (
-                      <span className="ml-2 text-primary-600">Flux actif</span>
-                    )}
-                    {s.tickerMessage && (
-                      <span className="ml-2 text-red-500">Message urgent</span>
-                    )}
-                  </p>
+                <div className="flex items-center gap-3">
+                  {s.connectedAgents > 0 && (
+                    <span className="h-3 w-3 shrink-0 rounded-full bg-green-500" title="Agent(s) connecte(s)" />
+                  )}
+                  <div>
+                    <span className="font-medium text-gray-900">{s.name}</span>
+                    {s.prefix && <span className="ml-2 text-xs text-gray-400">({s.prefix})</span>}
+                    <p className="text-xs text-gray-500">
+                      {s._count.agents} agent(s) - Guichets actifs : {s.activeCounters}/{s._count.counters}
+                      {s.feedUrl && (
+                        <span className="ml-2 text-primary-600">Flux actif</span>
+                      )}
+                      {s.tickerMessage && (
+                        <span className="ml-2 text-red-500">Message urgent</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

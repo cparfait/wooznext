@@ -252,7 +252,6 @@ npx tsx scripts/midnight-cleanup.ts           # Fermer les tickets ouverts en fi
 
 | Rôle | Email | Mot de passe | Service |
 |---|---|---|---|
-| Admin | admin@wooz.next | WoozNext14!! | - |
-| Agent | agent@wooz.next | WoozNext14!! | - |
-| Agent ECI | agent-educ@wooz.next | WoozNext14!! | ETAT CIVIL |
-| Agent CMS | agent-cms@wooz.next | WoozNext14!! | CENTRE DE SANTE |
+| Admin | admin | admin | - |
+| Agent | agent1 | agent | SUPPORT |
+| Agent | agent2 | agent | ACCUEIL |

@@ -363,14 +363,16 @@ export default function PublicDisplay({
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
-              <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-                En attente
-              </span>
-              <span className="text-2xl font-black text-gray-900">
-                {data.waitingCount}
-              </span>
-            </div>
+            {data.waitingCount > 0 && (
+              <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
+                <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+                  En attente
+                </span>
+                <span className="text-2xl font-black text-gray-900">
+                  {data.waitingCount}
+                </span>
+              </div>
+            )}
           </div>
         </main>
 

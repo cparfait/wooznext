@@ -46,3 +46,36 @@ export async function PATCH(
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getAdminSession();
+    if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+
+    // Check if agent has active tickets (SERVING)
+    const servingCount = await prisma.ticket.count({
+      where: { calledById: params.id, status: 'SERVING' },
+    });
+    if (servingCount > 0) {
+      return NextResponse.json(
+        { error: 'Cet agent a des tickets en cours. Terminez-les d\'abord.' },
+        { status: 400 }
+      );
+    }
+
+    // Unassign from counters first
+    await prisma.counter.updateMany({
+      where: { agentId: params.id },
+      data: { agentId: null },
+    });
+
+    await prisma.agent.delete({ where: { id: params.id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting agent:', error);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  }
+}
