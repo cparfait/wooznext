@@ -25,6 +25,8 @@ export default async function DisplayServicePage({ params }: DisplayServicePageP
       serviceId={service.id}
       serviceName={service.name}
       initialData={data}
+      initialTickerMessage={service.tickerMessage ?? null}
+      initialHasFeed={!!service.feedUrl}
     />
   );
 }

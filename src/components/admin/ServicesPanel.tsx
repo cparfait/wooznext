@@ -7,6 +7,8 @@ interface Service {
   name: string;
   prefix: string;
   isActive: boolean;
+  feedUrl: string | null;
+  tickerMessage: string | null;
   _count: { agents: number; counters: number };
 }
 
@@ -24,7 +26,7 @@ function defaultHours(): DayHours[] {
     dayOfWeek: i,
     openTime: '08:30',
     closeTime: '17:00',
-    isClosed: i >= 5, // Samedi et Dimanche fermes par defaut
+    isClosed: i >= 5,
   }));
 }
 
@@ -152,7 +154,6 @@ function ServiceLinks({ serviceId }: { serviceId: string }) {
 
   return (
     <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
-      {/* QR Code */}
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -195,6 +196,202 @@ function ServiceLinks({ serviceId }: { serviceId: string }) {
   );
 }
 
+function DisplaySettings({
+  serviceId,
+  initialFeedUrl,
+  initialTickerMessage,
+  onUpdate,
+}: {
+  serviceId: string;
+  initialFeedUrl: string | null;
+  initialTickerMessage: string | null;
+  onUpdate: () => void;
+}) {
+  const [feedUrl, setFeedUrl] = useState(initialFeedUrl || '');
+  const [feedDirty, setFeedDirty] = useState(false);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedMsg, setFeedMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [ticker, setTicker] = useState(initialTickerMessage || '');
+  const [tickerDirty, setTickerDirty] = useState(false);
+  const [tickerLoading, setTickerLoading] = useState(false);
+  const [tickerMsg, setTickerMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  async function saveFeed() {
+    setFeedLoading(true);
+    setFeedMsg(null);
+    try {
+      const res = await fetch(`/api/admin/services/${serviceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedUrl: feedUrl.trim() || null }),
+      });
+      if (res.ok) {
+        setFeedMsg({ type: 'success', text: 'Flux enregistre.' });
+        setFeedDirty(false);
+        onUpdate();
+      } else {
+        const data = await res.json();
+        setFeedMsg({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setFeedMsg({ type: 'error', text: 'Erreur de connexion.' });
+    }
+    setFeedLoading(false);
+    setTimeout(() => setFeedMsg(null), 3000);
+  }
+
+  async function deleteFeed() {
+    setFeedLoading(true);
+    try {
+      const res = await fetch(`/api/admin/services/${serviceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedUrl: null }),
+      });
+      if (res.ok) {
+        setFeedUrl('');
+        setFeedDirty(false);
+        setFeedMsg({ type: 'success', text: 'Flux supprime.' });
+        onUpdate();
+      }
+    } catch {
+      setFeedMsg({ type: 'error', text: 'Erreur.' });
+    }
+    setFeedLoading(false);
+    setTimeout(() => setFeedMsg(null), 3000);
+  }
+
+  async function saveTicker() {
+    setTickerLoading(true);
+    setTickerMsg(null);
+    try {
+      const res = await fetch(`/api/admin/services/${serviceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickerMessage: ticker.trim() || null }),
+      });
+      if (res.ok) {
+        setTickerMsg({ type: 'success', text: 'Message enregistre.' });
+        setTickerDirty(false);
+        onUpdate();
+      } else {
+        const data = await res.json();
+        setTickerMsg({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setTickerMsg({ type: 'error', text: 'Erreur de connexion.' });
+    }
+    setTickerLoading(false);
+    setTimeout(() => setTickerMsg(null), 3000);
+  }
+
+  async function deleteTicker() {
+    setTickerLoading(true);
+    try {
+      const res = await fetch(`/api/admin/services/${serviceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickerMessage: null }),
+      });
+      if (res.ok) {
+        setTicker('');
+        setTickerDirty(false);
+        setTickerMsg({ type: 'success', text: 'Message supprime.' });
+        onUpdate();
+      }
+    } catch {
+      setTickerMsg({ type: 'error', text: 'Erreur.' });
+    }
+    setTickerLoading(false);
+    setTimeout(() => setTickerMsg(null), 3000);
+  }
+
+  return (
+    <div className="mt-3 space-y-4 border-t border-gray-100 pt-3">
+      {/* Feed URL */}
+      <div>
+        <p className="mb-1 text-xs font-medium text-gray-500">
+          Flux d&apos;actualites (bandeau lateral sur l&apos;ecran public)
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={feedUrl}
+            onChange={(e) => {
+              setFeedUrl(e.target.value);
+              setFeedDirty(true);
+            }}
+            placeholder="https://www.ville-chatillon.fr/actualites/json"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none"
+          />
+          <button
+            onClick={saveFeed}
+            disabled={feedLoading || !feedDirty}
+            className="rounded-lg bg-primary-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+          >
+            {feedLoading ? '...' : 'Enregistrer'}
+          </button>
+          {initialFeedUrl && (
+            <button
+              onClick={deleteFeed}
+              disabled={feedLoading}
+              className="rounded-lg px-2 py-1.5 text-xs text-red-600 hover:bg-red-50"
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+        {feedMsg && (
+          <p className={`mt-1 text-xs ${feedMsg.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            {feedMsg.text}
+          </p>
+        )}
+      </div>
+
+      {/* Ticker message */}
+      <div>
+        <p className="mb-1 text-xs font-medium text-gray-500">
+          Message defilant urgent (bandeau rouge en bas de l&apos;ecran)
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={ticker}
+            onChange={(e) => {
+              setTicker(e.target.value);
+              setTickerDirty(true);
+            }}
+            placeholder="Ex: Fermeture exceptionnelle a 16h aujourd'hui"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none"
+          />
+          <button
+            onClick={saveTicker}
+            disabled={tickerLoading || !tickerDirty}
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-50"
+          >
+            {tickerLoading ? '...' : 'Publier'}
+          </button>
+          {initialTickerMessage && (
+            <button
+              onClick={deleteTicker}
+              disabled={tickerLoading}
+              className="rounded-lg px-2 py-1.5 text-xs text-red-600 hover:bg-red-50"
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+        {tickerMsg && (
+          <p className={`mt-1 text-xs ${tickerMsg.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            {tickerMsg.text}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ServicesPanel() {
   const [services, setServices] = useState<Service[]>([]);
   const [name, setName] = useState('');
@@ -202,6 +399,7 @@ export default function ServicesPanel() {
   const [loading, setLoading] = useState(false);
   const [expandedHours, setExpandedHours] = useState<string | null>(null);
   const [expandedLinks, setExpandedLinks] = useState<string | null>(null);
+  const [expandedDisplay, setExpandedDisplay] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -285,6 +483,10 @@ export default function ServicesPanel() {
     setExpandedLinks((prev) => (prev === id ? null : id));
   }
 
+  function toggleDisplay(id: string) {
+    setExpandedDisplay((prev) => (prev === id ? null : id));
+  }
+
   return (
     <div className="space-y-6">
       {/* Create form */}
@@ -363,6 +565,12 @@ export default function ServicesPanel() {
                   {s.prefix && <span className="ml-2 text-xs text-gray-400">({s.prefix})</span>}
                   <p className="text-xs text-gray-500">
                     {s._count.agents} agent(s) - {s._count.counters} guichet(s)
+                    {s.feedUrl && (
+                      <span className="ml-2 text-primary-600">Flux actif</span>
+                    )}
+                    {s.tickerMessage && (
+                      <span className="ml-2 text-red-500">Message urgent</span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -371,6 +579,16 @@ export default function ServicesPanel() {
                     className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
                   >
                     Modifier
+                  </button>
+                  <button
+                    onClick={() => toggleDisplay(s.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                      expandedDisplay === s.id
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Affichage
                   </button>
                   <button
                     onClick={() => toggleLinks(s.id)}
@@ -438,6 +656,16 @@ export default function ServicesPanel() {
             {/* Delete error message */}
             {deleteError && deleteConfirm === s.id && (
               <p className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>
+            )}
+
+            {/* Display settings (feed + ticker) */}
+            {expandedDisplay === s.id && (
+              <DisplaySettings
+                serviceId={s.id}
+                initialFeedUrl={s.feedUrl}
+                initialTickerMessage={s.tickerMessage}
+                onUpdate={fetchServices}
+              />
             )}
 
             {/* Service links and QR code */}

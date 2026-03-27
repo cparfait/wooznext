@@ -53,6 +53,30 @@ const config: Config = {
           '0%': { transform: 'translateX(100vw)' },
           '100%': { transform: 'translateX(-100%)' },
         },
+        'wow-alert': {
+          '0%': {
+            boxShadow: '0 0 0 0 rgba(0, 110, 70, 0.8)',
+            transform: 'scale(1.05) rotate(0deg)',
+          },
+          '25%': {
+            transform: 'scale(1.12) rotate(-3deg)',
+          },
+          '50%': {
+            boxShadow: '0 0 50px 25px rgba(0, 110, 70, 0.4)',
+            transform: 'scale(1.15) rotate(3deg)',
+          },
+          '75%': {
+            transform: 'scale(1.12) rotate(-3deg)',
+          },
+          '100%': {
+            boxShadow: '0 0 0 0 rgba(0, 110, 70, 0)',
+            transform: 'scale(1.05) rotate(0deg)',
+          },
+        },
+        progress: {
+          '0%': { width: '0%' },
+          '100%': { width: '100%' },
+        },
       },
       animation: {
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
@@ -60,6 +84,7 @@ const config: Config = {
         'slide-down': 'slide-down 0.4s ease-out',
         'flash-bg': 'flash-bg 2s ease-out',
         ticker: 'ticker 20s linear infinite',
+        'wow-alert': 'wow-alert 0.6s ease-in-out 50',
       },
     },
   },

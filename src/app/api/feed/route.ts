@@ -1,24 +1,25 @@
-import { NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
-
-const FEED_FILE = path.join(process.cwd(), 'data', 'feed-url.txt');
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  if (!existsSync(FEED_FILE)) {
+export async function GET(req: NextRequest) {
+  const serviceId = req.nextUrl.searchParams.get('serviceId');
+  if (!serviceId) {
     return NextResponse.json({ items: null });
   }
 
-  const url = (await readFile(FEED_FILE, 'utf-8')).trim();
-  if (!url) {
+  const service = await prisma.service.findUnique({
+    where: { id: serviceId },
+    select: { feedUrl: true },
+  });
+
+  if (!service?.feedUrl) {
     return NextResponse.json({ items: null });
   }
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(service.feedUrl, {
       next: { revalidate: 300 },
       signal: AbortSignal.timeout(5000),
     });
@@ -33,13 +34,18 @@ export async function GET() {
       ? json
       : json.items ?? json.data ?? json.results ?? json.articles ?? [];
 
-    // Normalize items — adapt to common French city feed structures
-    const items = rawItems.slice(0, 5).map((item: Record<string, unknown>) => ({
-      title: item.title ?? item.titre ?? item.name ?? item.nom ?? '',
-      date: item.date ?? item.publicationDebut ?? item.published ?? item.pubDate ?? item.created ?? null,
-      image: item.image ?? item.imageUrl ?? item.thumbnail ?? item.photo ?? item.visuel ?? null,
-      url: item.url ?? item.link ?? item.href ?? null,
-    }));
+    // Filter active items and normalize
+    const items = rawItems
+      .filter((item: Record<string, unknown>) => item.etat === undefined || item.etat === 1)
+      .slice(0, 5)
+      .map((item: Record<string, unknown>) => ({
+        title: item.title ?? item.titre ?? item.name ?? item.nom ?? '',
+        date: item.date ?? item.publicationDebut ?? item.published ?? item.pubDate ?? item.created ?? null,
+        image: item.image ?? item.imageUrl ?? item.thumbnail ?? item.photo ?? item.visuel ?? null,
+        url: item.url ?? item.link ?? item.href ?? null,
+        content: item.contenu ?? item.content ?? item.description ?? item.summary ?? null,
+        category: item.codeActualite ?? item.category ?? item.categorie ?? null,
+      }));
 
     return NextResponse.json({ items });
   } catch {

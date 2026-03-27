@@ -26,12 +26,14 @@ enum TicketStatus {
 
 /// Service municipal (ex: État civil, Urbanisme, etc.)
 model Service {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  prefix    String   @default("") // Préfixe optionnel pour les tickets (ex: "EC" pour État civil)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String   @unique
+  prefix         String   @default("") // Préfixe optionnel pour les tickets (ex: "EC" pour État civil)
+  isActive       Boolean  @default(true)
+  feedUrl        String?  @map("feed_url") // URL du flux JSON d'actualités pour l'affichage public
+  tickerMessage  String?  @map("ticker_message") // Message défilant urgent pour l'affichage public
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   agents         Agent[]
   counters       Counter[]
