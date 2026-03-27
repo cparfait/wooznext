@@ -7,9 +7,14 @@ export default function SettingsPanel() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [feedUrl, setFeedUrl] = useState('');
+  const [feedSaved, setFeedSaved] = useState(false);
+  const [feedMessage, setFeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [feedLoading, setFeedLoading] = useState(false);
 
   useEffect(() => {
     checkLogo();
+    loadFeedUrl();
   }, []);
 
   function checkLogo() {
@@ -52,6 +57,58 @@ export default function SettingsPanel() {
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function loadFeedUrl() {
+    try {
+      const res = await fetch('/api/admin/feed');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          setFeedUrl(data.url);
+          setFeedSaved(true);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleSaveFeed() {
+    setFeedLoading(true);
+    setFeedMessage(null);
+    try {
+      const res = await fetch('/api/admin/feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: feedUrl }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFeedMessage({ type: 'success', text: 'Flux enregistre.' });
+        setFeedSaved(true);
+      } else {
+        setFeedMessage({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setFeedMessage({ type: 'error', text: 'Erreur de connexion.' });
+    } finally {
+      setFeedLoading(false);
+    }
+  }
+
+  async function handleDeleteFeed() {
+    if (!confirm('Supprimer le flux d\'actualites ?')) return;
+    try {
+      const res = await fetch('/api/admin/feed', { method: 'DELETE' });
+      if (res.ok) {
+        setFeedUrl('');
+        setFeedSaved(false);
+        setFeedMessage({ type: 'success', text: 'Flux supprime.' });
+      }
+    } catch {
+      setFeedMessage({ type: 'error', text: 'Erreur lors de la suppression.' });
     }
   }
 
@@ -122,6 +179,49 @@ export default function SettingsPanel() {
             message.type === 'success' ? 'text-green-600' : 'text-red-600'
           }`}>
             {message.text}
+          </p>
+        )}
+      </div>
+      {/* Feed URL section */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <h3 className="mb-4 text-base font-semibold text-gray-900">
+          Flux d&apos;actualites (affichage public)
+        </h3>
+        <p className="mb-4 text-sm text-gray-500">
+          URL d&apos;un flux JSON d&apos;actualites a afficher dans un bandeau lateral sur l&apos;ecran public.
+          Si vide, l&apos;ecran affiche uniquement le ticket en cours.
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={feedUrl}
+            onChange={(e) => { setFeedUrl(e.target.value); setFeedSaved(false); }}
+            placeholder="https://www.ville-chatillon.fr/actualites/json"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+          <button
+            onClick={handleSaveFeed}
+            disabled={feedLoading || !feedUrl || feedSaved}
+            className="rounded-lg bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors disabled:opacity-50"
+          >
+            {feedLoading ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+          {feedSaved && feedUrl && (
+            <button
+              onClick={handleDeleteFeed}
+              className="rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+
+        {feedMessage && (
+          <p className={`mt-3 text-sm ${
+            feedMessage.type === 'success' ? 'text-green-600' : 'text-red-600'
+          }`}>
+            {feedMessage.text}
           </p>
         )}
       </div>

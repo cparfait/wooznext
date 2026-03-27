@@ -3,6 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useServiceSocket } from '@/hooks/useSocket';
 
+function parseFrenchDate(dateStr: string): string {
+  // Handle "DD/MM/YYYY HH:MM" format from ville-chatillon.fr
+  const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (match) {
+    const d = new Date(`${match[3]}-${match[2]}-${match[1]}`);
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  }
+  // Fallback for ISO dates
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+}
+
 interface ServingTicket {
   displayCode: string;
   counterLabel: string | null;
@@ -12,9 +24,16 @@ interface ServingTicket {
 interface DisplayData {
   currentCode: string | null;
   currentCounter: string | null;
-  nextCode: string | null;
+  lastCalledCode: string | null;
   waitingCount: number;
   servingTickets: ServingTicket[];
+}
+
+interface FeedItem {
+  title: string;
+  date: string | null;
+  image: string | null;
+  url: string | null;
 }
 
 interface PublicDisplayProps {
@@ -25,12 +44,12 @@ interface PublicDisplayProps {
 
 export default function PublicDisplay({
   serviceId,
-  serviceName,
   initialData,
 }: PublicDisplayProps) {
   const [data, setData] = useState<DisplayData>(initialData);
   const [flash, setFlash] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -44,6 +63,26 @@ export default function PublicDisplay({
         if (res.ok) setLogoUrl('/api/logo');
       })
       .catch(() => {});
+  }, []);
+
+  // Load feed
+  useEffect(() => {
+    async function loadFeed() {
+      try {
+        const res = await fetch('/api/feed');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.items && json.items.length > 0) {
+          setFeedItems(json.items);
+        }
+      } catch {
+        // No feed
+      }
+    }
+    loadFeed();
+    // Refresh feed every 5 minutes
+    const interval = setInterval(loadFeed, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const playNotificationSound = useCallback(() => {
@@ -99,12 +138,15 @@ export default function PublicDisplay({
     return () => clearInterval(interval);
   }, []);
 
+  const hasFeed = feedItems && feedItems.length > 0;
+
   return (
     <main
       className="flex h-screen cursor-pointer overflow-hidden bg-white"
       onClick={handleFullscreen}
     >
-      <div className="flex flex-1 flex-col">
+      {/* Zone principale */}
+      <div className={`flex flex-col ${hasFeed ? 'flex-[65]' : 'flex-1'}`}>
         {/* Header */}
         <header className="flex items-center justify-between border-b border-gray-200 px-8 py-5">
           <div className="flex items-center gap-4">
@@ -116,9 +158,6 @@ export default function PublicDisplay({
                 className="h-12 w-auto object-contain"
               />
             )}
-            <h2 className="text-xl font-bold tracking-wide text-gray-900">
-              {serviceName}
-            </h2>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -174,10 +213,10 @@ export default function PublicDisplay({
 
           {/* Info en attente — bas */}
           <div className="mt-auto mb-6 flex items-center gap-6">
-            {data.nextCode && (
+            {data.lastCalledCode && (
               <div className="flex items-center gap-3 rounded-2xl bg-gray-100 px-6 py-3">
-                <span className="text-sm uppercase tracking-wider text-gray-500">Suivant</span>
-                <span className="text-2xl font-black text-gray-900">{data.nextCode}</span>
+                <span className="text-sm uppercase tracking-wider text-gray-500">Dernier appel</span>
+                <span className="text-2xl font-black text-gray-900">{data.lastCalledCode}</span>
               </div>
             )}
             <div className="flex items-center gap-3 rounded-2xl bg-gray-100 px-6 py-3">
@@ -187,6 +226,42 @@ export default function PublicDisplay({
           </div>
         </div>
       </div>
+
+      {/* Bandeau droit — flux d'actualites (uniquement si configure) */}
+      {hasFeed && (
+        <div className="flex flex-[35] flex-col border-l border-gray-200 bg-gray-50">
+          <div className="border-b border-gray-200 px-6 py-5">
+            <h3 className="text-lg font-bold uppercase tracking-wider text-gray-500">
+              Actualites
+            </h3>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {feedItems.map((item, index) => (
+                <div key={index} className="px-6 py-5">
+                  {item.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="mb-3 h-28 w-full rounded-lg object-cover"
+                    />
+                  )}
+                  <p className="text-base font-semibold leading-snug text-gray-800">
+                    {item.title}
+                  </p>
+                  {item.date && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {parseFrenchDate(item.date)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

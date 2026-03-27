@@ -275,10 +275,24 @@ export async function getDisplayData(serviceId: string) {
 
   const currentTicket = servingTickets[0] ?? null;
 
+  // Dernier ticket appele = le precedent dans la liste des tickets en service,
+  // ou le dernier ticket complete si un seul en service
+  let lastCalledCode: string | null = null;
+  if (servingTickets.length > 1) {
+    lastCalledCode = servingTickets[1].displayCode;
+  } else {
+    const lastCompleted = await prisma.ticket.findFirst({
+      where: { serviceId, status: TicketStatus.COMPLETED },
+      orderBy: { completedAt: 'desc' },
+      select: { displayCode: true },
+    });
+    lastCalledCode = lastCompleted?.displayCode ?? null;
+  }
+
   return {
     currentCode: currentTicket?.displayCode ?? null,
     currentCounter: currentTicket?.counter?.label ?? null,
-    nextCode: waitingTickets[0]?.displayCode ?? null,
+    lastCalledCode,
     waitingCount: waitingTickets.length,
     servingTickets: servingTickets.map((t) => ({
       displayCode: t.displayCode,
