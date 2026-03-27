@@ -12,6 +12,13 @@ export default function TicketForm() {
   const [error, setError] = useState('');
   const [serviceName, setServiceName] = useState('');
   const [ready, setReady] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/logo').then((res) => {
+      if (res.ok) setLogoUrl('/api/logo');
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!serviceId) {
@@ -63,6 +70,11 @@ export default function TicketForm() {
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
       <div className="space-y-6">
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
+        )}
+
         {serviceName && (
           <div className="rounded-lg bg-primary-50 p-3 text-center text-sm font-medium text-primary-700">
             {serviceName}

@@ -79,10 +79,9 @@ export default function TicketTracker({
 
   useEffect(() => {
     if (isCurrent) {
-      playSound();
       setShowCelebration(true);
     }
-  }, [isCurrent, playSound]);
+  }, [isCurrent]);
 
   async function handleLeave() {
     try {
