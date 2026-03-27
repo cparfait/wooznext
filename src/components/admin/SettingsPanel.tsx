@@ -76,7 +76,7 @@ export default function SettingsPanel() {
       {/* Logo section */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-base font-semibold text-gray-900">
-          Logo de l'application
+          Logo de l&apos;application
         </h3>
         <p className="mb-4 text-sm text-gray-500">
           Ce logo sera affiche sur l&apos;ecran public (Chromecast). Formats acceptes : PNG, JPG, SVG, WebP (max 2 Mo).
@@ -125,6 +125,10 @@ export default function SettingsPanel() {
           </p>
         )}
       </div>
+
+      <p className="text-sm text-gray-500">
+        Le flux d&apos;actualites et le message defilant se configurent par service dans l&apos;onglet Services.
+      </p>
     </div>
   );
 }

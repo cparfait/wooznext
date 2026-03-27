@@ -7,6 +7,8 @@ const updateServiceSchema = z.object({
   name: z.string().min(1).optional(),
   prefix: z.string().max(5).optional(),
   isActive: z.boolean().optional(),
+  feedUrl: z.string().url().nullable().optional(),
+  tickerMessage: z.string().nullable().optional(),
 });
 
 export async function PATCH(
