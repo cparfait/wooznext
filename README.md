@@ -145,7 +145,10 @@ DATABASE_URL=postgresql://wooznext:MOT_DE_PASSE_FORT@db:5432/wooznext
 DB_PASSWORD=MOT_DE_PASSE_FORT
 NEXTAUTH_SECRET=secret_genere_avec_openssl
 NEXTAUTH_URL=https://votre-domaine.fr
+PHONE_PEPPER=pepper_genere_avec_openssl
 ```
+
+> **Important** : `NEXTAUTH_URL` determine la base de toutes les URLs generees par l'application (QR codes, liens visiteur, liens affichage public). Utilisez votre nom de domaine ou votre IP publique (ex: `https://votre-domaine.fr` ou `http://123.45.67.89:3000`).
 
 ### 3. Lancer
 
