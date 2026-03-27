@@ -6,19 +6,35 @@ import { TicketStatus } from '@prisma/client';
 export async function GET(request: NextRequest) {
   try {
     const session = await getAdminSession();
-    if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
     const serviceId = searchParams.get('serviceId') || undefined;
     const agentId = searchParams.get('agentId') || undefined;
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Date range
+    let dateFrom: Date;
+    let dateTo: Date;
 
-    // Build base filters
-    const baseWhere: Record<string, unknown> = { createdAt: { gte: today } };
-    if (serviceId) baseWhere.serviceId = serviceId;
-    if (agentId) baseWhere.calledById = agentId;
+    if (fromParam) {
+      dateFrom = new Date(fromParam);
+      dateFrom.setHours(0, 0, 0, 0);
+    } else {
+      dateFrom = new Date();
+      dateFrom.setHours(0, 0, 0, 0);
+    }
+
+    if (toParam) {
+      dateTo = new Date(toParam);
+      dateTo.setHours(23, 59, 59, 999);
+    } else {
+      dateTo = new Date();
+      dateTo.setHours(23, 59, 59, 999);
+    }
+
+    const dateFilter = { gte: dateFrom, lte: dateTo };
 
     const [
       totalToday,
@@ -29,12 +45,16 @@ export async function GET(request: NextRequest) {
       avgServiceTime,
     ] = await Promise.all([
       prisma.ticket.count({
-        where: { ...baseWhere },
+        where: {
+          createdAt: dateFilter,
+          ...(serviceId ? { serviceId } : {}),
+          ...(agentId ? { calledById: agentId } : {}),
+        },
       }),
       prisma.ticket.count({
         where: {
           status: TicketStatus.COMPLETED,
-          completedAt: { gte: today },
+          completedAt: dateFilter,
           ...(serviceId ? { serviceId } : {}),
           ...(agentId ? { calledById: agentId } : {}),
         },
@@ -42,7 +62,7 @@ export async function GET(request: NextRequest) {
       prisma.ticket.count({
         where: {
           status: TicketStatus.NO_SHOW,
-          completedAt: { gte: today },
+          completedAt: dateFilter,
           ...(serviceId ? { serviceId } : {}),
           ...(agentId ? { calledById: agentId } : {}),
         },
@@ -60,12 +80,11 @@ export async function GET(request: NextRequest) {
           ...(agentId ? { calledById: agentId } : {}),
         },
       }),
-      // Average service time: only COMPLETED tickets (exclude NO_SHOW)
       prisma.ticket.findMany({
         where: {
           status: TicketStatus.COMPLETED,
           calledAt: { not: null },
-          completedAt: { gte: today },
+          completedAt: dateFilter,
           ...(serviceId ? { serviceId } : {}),
           ...(agentId ? { calledById: agentId } : {}),
         },
@@ -93,7 +112,7 @@ export async function GET(request: NextRequest) {
         name: true,
         tickets: {
           where: {
-            createdAt: { gte: today },
+            createdAt: dateFilter,
             ...(agentId ? { calledById: agentId } : {}),
           },
           select: { status: true },
@@ -112,7 +131,7 @@ export async function GET(request: NextRequest) {
     // Per-agent stats
     const agentTickets = await prisma.ticket.findMany({
       where: {
-        completedAt: { gte: today },
+        completedAt: dateFilter,
         status: { in: [TicketStatus.COMPLETED, TicketStatus.NO_SHOW] },
         calledById: agentId ? agentId : { not: null },
         ...(serviceId ? { serviceId } : {}),

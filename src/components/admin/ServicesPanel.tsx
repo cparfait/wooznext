@@ -8,6 +8,7 @@ interface Service {
   prefix: string;
   isActive: boolean;
   feedUrl: string | null;
+  feedActive: boolean;
   tickerMessage: string | null;
   _count: { agents: number; counters: number };
   activeCounters: number;
@@ -149,9 +150,32 @@ function ServiceLinks({ serviceId }: { serviceId: string }) {
   const visitorUrl = `${baseUrl}/?service=${serviceId}`;
   const displayUrl = `${baseUrl}/display/${serviceId}`;
   const qrCodeUrl = `${baseUrl}/api/qrcode?serviceId=${serviceId}`;
+  const logoUrl = '/api/logo';
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
+  }
+
+  function handlePrintQR() {
+    const win = window.open('', '_blank', 'width=600,height=800');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html>
+<html><head><title>QR Code</title>
+<style>
+  body { font-family: 'Montserrat', Arial, sans-serif; text-align: center; padding: 40px; }
+  .logo { max-height: 80px; margin-bottom: 20px; }
+  .qr { width: 300px; height: 300px; margin: 20px auto; }
+  h2 { color: #006e46; margin-bottom: 10px; }
+  p { color: #333; font-size: 16px; line-height: 1.5; max-width: 400px; margin: 10px auto; }
+  @media print { body { padding: 60px 40px; } }
+</style></head><body>
+<img src="${logoUrl}" class="logo" onerror="this.style.display='none'" />
+<h2>File d'attente numerique</h2>
+<img src="${qrCodeUrl}" class="qr" />
+<p>Scannez ce QR code avec votre telephone pour obtenir un ticket virtuel et suivre votre position dans la file.</p>
+<script>window.onload=function(){setTimeout(function(){window.print()},500)}</script>
+</body></html>`);
+    win.document.close();
   }
 
   return (
@@ -192,6 +216,12 @@ function ServiceLinks({ serviceId }: { serviceId: string }) {
               </button>
             </div>
           </div>
+          <button
+            onClick={handlePrintQR}
+            className="mt-1 rounded-lg bg-primary-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600"
+          >
+            Imprimer le QR code
+          </button>
         </div>
       </div>
     </div>
@@ -201,15 +231,18 @@ function ServiceLinks({ serviceId }: { serviceId: string }) {
 function DisplaySettings({
   serviceId,
   initialFeedUrl,
+  initialFeedActive,
   initialTickerMessage,
   onUpdate,
 }: {
   serviceId: string;
   initialFeedUrl: string | null;
+  initialFeedActive: boolean;
   initialTickerMessage: string | null;
   onUpdate: () => void;
 }) {
   const [feedUrl, setFeedUrl] = useState(initialFeedUrl || '');
+  const [feedActive, setFeedActive] = useState(initialFeedActive);
   const [feedDirty, setFeedDirty] = useState(false);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedMsg, setFeedMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -313,9 +346,36 @@ function DisplaySettings({
     <div className="mt-3 space-y-4 border-t border-gray-100 pt-3">
       {/* Feed URL */}
       <div>
-        <p className="mb-1 text-xs font-medium text-gray-500">
-          Flux d&apos;actualites (bandeau lateral sur l&apos;ecran public)
-        </p>
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-xs font-medium text-gray-500">
+            Flux d&apos;actualites (bandeau lateral sur l&apos;ecran public)
+          </p>
+          {initialFeedUrl && (
+            <button
+              onClick={async () => {
+                setFeedLoading(true);
+                const res = await fetch(`/api/admin/services/${serviceId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ feedActive: !feedActive }),
+                });
+                if (res.ok) {
+                  setFeedActive(!feedActive);
+                  onUpdate();
+                }
+                setFeedLoading(false);
+              }}
+              disabled={feedLoading}
+              className={`rounded-lg px-2 py-1 text-xs font-medium ${
+                feedActive
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {feedActive ? 'Actif' : 'Desactive'}
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <input
             type="url"
@@ -572,7 +632,9 @@ export default function ServicesPanel() {
                     <p className="text-xs text-gray-500">
                       {s._count.agents} agent(s) - Guichets actifs : {s.activeCounters}/{s._count.counters}
                       {s.feedUrl && (
-                        <span className="ml-2 text-primary-600">Flux actif</span>
+                        <span className={`ml-2 ${s.feedActive ? 'text-primary-600' : 'text-gray-400'}`}>
+                          {s.feedActive ? 'Flux actif' : 'Flux desactive'}
+                        </span>
                       )}
                       {s.tickerMessage && (
                         <span className="ml-2 text-red-500">Message urgent</span>
@@ -670,6 +732,7 @@ export default function ServicesPanel() {
               <DisplaySettings
                 serviceId={s.id}
                 initialFeedUrl={s.feedUrl}
+                initialFeedActive={s.feedActive}
                 initialTickerMessage={s.tickerMessage}
                 onUpdate={fetchServices}
               />

@@ -8,6 +8,7 @@ const updateServiceSchema = z.object({
   prefix: z.string().max(5).optional(),
   isActive: z.boolean().optional(),
   feedUrl: z.string().url().nullable().optional(),
+  feedActive: z.boolean().optional(),
   tickerMessage: z.string().nullable().optional(),
 });
 

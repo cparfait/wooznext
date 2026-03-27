@@ -31,6 +31,7 @@ model Service {
   prefix         String   @default("") // Préfixe optionnel pour les tickets (ex: "EC" pour État civil)
   isActive       Boolean  @default(true)
   feedUrl        String?  @map("feed_url") // URL du flux JSON d'actualités pour l'affichage public
+  feedActive     Boolean  @default(true) @map("feed_active") // Activer/desactiver le flux sans supprimer l'URL
   tickerMessage  String?  @map("ticker_message") // Message défilant urgent pour l'affichage public
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

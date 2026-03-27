@@ -1,0 +1,1 @@
+ALTER TABLE "services" ADD COLUMN "feed_active" BOOLEAN NOT NULL DEFAULT true;

@@ -23,7 +23,9 @@ function isServiceOpen(hours: DayHours[]): { open: boolean; hours: DayHours[] } 
   const todayHours = hours.find((h) => h.dayOfWeek === dayOfWeek);
   if (!todayHours || todayHours.isClosed) return { open: false, hours };
 
-  const currentTime = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const currentTime = `${hh}:${mm}`;
   if (currentTime < todayHours.openTime || currentTime >= todayHours.closeTime) {
     return { open: false, hours };
   }
@@ -115,14 +117,16 @@ export default function TicketForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
-      <div className="space-y-6">
-        {logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
-        )}
+    <div className="space-y-6">
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
+      )}
+      <h1 className="text-3xl font-bold text-gray-900">Bienvenue</h1>
 
-        {error && (
+      <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="space-y-6">
+          {error && (
           <div className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-600">
             {error}
           </div>
@@ -161,7 +165,7 @@ export default function TicketForm() {
           <>
             <div>
               <label htmlFor="phone" className="block text-left text-sm font-medium text-gray-700">
-                Votre numero de telephone
+                Saisissez votre numero pour obtenir un ticket
               </label>
               <input
                 id="phone"
@@ -185,7 +189,8 @@ export default function TicketForm() {
             </button>
           </>
         )}
-      </div>
-    </form>
+        </div>
+      </form>
+    </div>
   );
 }

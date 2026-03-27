@@ -31,6 +31,47 @@ interface AgentOption {
   name: string;
 }
 
+type Period = 'today' | 'week' | 'month' | 'year';
+
+function getPeriodDates(period: Period): { from: string; to: string } {
+  const now = new Date();
+  const to = now.toISOString().split('T')[0];
+  let from: string;
+
+  switch (period) {
+    case 'today':
+      from = to;
+      break;
+    case 'week': {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      from = d.toISOString().split('T')[0];
+      break;
+    }
+    case 'month': {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - 1);
+      from = d.toISOString().split('T')[0];
+      break;
+    }
+    case 'year': {
+      const d = new Date(now);
+      d.setFullYear(d.getFullYear() - 1);
+      from = d.toISOString().split('T')[0];
+      break;
+    }
+  }
+
+  return { from, to };
+}
+
+const PERIOD_LABELS: Record<Period, string> = {
+  today: "Aujourd'hui",
+  week: '7 derniers jours',
+  month: '30 derniers jours',
+  year: '12 derniers mois',
+};
+
 export default function StatsPanel() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -38,15 +79,19 @@ export default function StatsPanel() {
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState('');
+  const [period, setPeriod] = useState<Period>('today');
 
   const fetchStats = useCallback(async () => {
     const params = new URLSearchParams();
     if (selectedServiceId) params.set('serviceId', selectedServiceId);
     if (selectedAgentId) params.set('agentId', selectedAgentId);
+    const { from, to } = getPeriodDates(period);
+    params.set('from', from);
+    params.set('to', to);
     const qs = params.toString();
     const res = await fetch(`/api/admin/stats${qs ? `?${qs}` : ''}`);
     if (res.ok) setStats(await res.json());
-  }, [selectedServiceId, selectedAgentId]);
+  }, [selectedServiceId, selectedAgentId, period]);
 
   useEffect(() => {
     async function loadFilters() {
@@ -91,6 +136,23 @@ export default function StatsPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Period selector */}
+      <div className="flex gap-2">
+        {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              period === p
+                ? 'bg-primary-700 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {PERIOD_LABELS[p]}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <select
@@ -117,7 +179,7 @@ export default function StatsPanel() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Card label="Tickets du jour" value={stats.totalToday} />
+        <Card label="Tickets" value={stats.totalToday} />
         <Card label="Termines" value={stats.completedToday} color="text-green-600" />
         <Card label="Absents" value={stats.noShowToday} color="text-red-500" />
         <Card label="En attente" value={stats.waitingNow} color="text-orange-500" />

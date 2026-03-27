@@ -123,12 +123,6 @@ export default function TicketTracker({
   if (isCurrent) {
     return (
       <div className="flex min-h-svh flex-col bg-primary-700">
-        <div className="px-5 pt-5">
-          <p className="text-sm font-medium text-primary-200">
-            {ticket.service.name}
-          </p>
-        </div>
-
         <div className="flex flex-1 flex-col items-center justify-center px-5">
           <p className="text-base font-semibold uppercase tracking-widest text-accent-400 sm:text-lg">
             C&apos;est votre tour

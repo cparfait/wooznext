@@ -11,10 +11,10 @@ export async function GET(req: NextRequest) {
 
   const service = await prisma.service.findUnique({
     where: { id: serviceId },
-    select: { feedUrl: true },
+    select: { feedUrl: true, feedActive: true },
   });
 
-  if (!service?.feedUrl) {
+  if (!service?.feedUrl || !service.feedActive) {
     return NextResponse.json({ items: null });
   }
 
