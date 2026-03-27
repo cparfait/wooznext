@@ -51,25 +51,27 @@ L'agent appelle les visiteurs depuis une interface dédiée. Un écran public (C
 - **Lisible de loin** : la vue Affichage public utilise des typographies très grandes (écran Chromecast)
 - **Pas d'emojis** dans le code ou les interfaces sauf si demandé explicitement
 
-### Palette de couleurs
+### Palette de couleurs (charte Chatillon)
 - Fond agent : `bg-gray-400`
 - Fond visiteur : `bg-gray-50` (blanc cassé)
-- Fond affichage public : `bg-white`
-- Bouton principal : `bg-primary-500` (bleu `#4272b8`)
+- Fond affichage public : gradient `from-primary-800 via-primary-700 to-primary-900`
+- Couleur primaire : vert `#006e46` (primary-700)
+- Couleur accent : jaune-vert `#aec80c` (accent-500)
 - Texte principal : `text-gray-900`
 - Texte secondaire : `text-gray-600`
-- Indicateur actif / positif : `text-green-500`
+- Police : **Montserrat** (via next/font/google)
 
 ### Format des numéros de ticket
 - Toujours sur **3 chiffres avec zéro padding** : `001`, `042`, `100`
 - Avec préfixe de service (optionnel) : `EC-001`, `UR-042`
 - Réinitialisation **chaque jour** par service
 
-### Composants UI attendus (inspirés des maquettes)
-- Cercle de progression (vue visiteur) pour indiquer la position en file
+### Composants UI attendus
+- Card avec position et barre de progression (vue visiteur mobile)
 - Bottom sheet (vue agent) pour sélectionner un visiteur spécifique
 - Modale de confirmation avant actions sensibles (renvoyer en file, annuler)
 - Popup festive avec confetti quand c'est le tour du visiteur
+- Bandeau lateral avec liste des tickets appeles (affichage public)
 
 ---
 
@@ -106,7 +108,7 @@ SERVING → WAITING  (retour en file — confirmation requise)
 
 | Route | Vue | Accès |
 |---|---|---|
-| `/` | Saisie téléphone + prise de ticket | Public |
+| `/?service=ID` | Saisie téléphone + prise de ticket | Public (via QR code) |
 | `/ticket/[id]` | Suivi du ticket en temps réel | Public (lien unique) |
 | `/agent` | Dashboard agent (appel file) | Privé (session agent) |
 | `/agent/login` | Connexion agent | Public |
@@ -173,11 +175,14 @@ DB_PASSWORD           # Mot de passe PostgreSQL
 - [x] Reconnexion automatique côté client
 
 ### Phase 6 — Vue Visiteur Mobile
-- [x] Formulaire de saisie du téléphone (page `/`)
-- [x] Sélection du service
+- [x] Formulaire de saisie du téléphone (page `/?service=ID`)
+- [x] URL par service via QR code (pas de selection manuelle)
 - [x] Affichage du ticket (`/ticket/[id]`) avec position en file
-- [x] Cercle de progression animé
+- [x] Design card moderne mobile-first avec barre de progression
 - [x] Popup festive "C'est votre tour !" avec confetti
+- [x] Son de notification quand le visiteur est appele
+- [x] Bouton "Quitter la file" avec confirmation
+- [x] Logo de l'application sur les pages visiteur
 
 ### Phase 7 — Vue Agent
 - [x] Compteur "Actuellement en service" (grand format)
@@ -189,23 +194,29 @@ DB_PASSWORD           # Mot de passe PostgreSQL
 
 ### Phase 8 — Vue Affichage Public (Chromecast)
 - [x] Numéro en cours (très grand format)
-- [x] Numéro suivant (format moyen)
+- [x] Bandeau lateral avec liste des tickets appeles + guichets
 - [x] Compteur de visiteurs en attente
 - [x] Mise à jour instantanée via Socket.IO
 - [x] Mode plein écran automatique
+- [x] Son + flash animation a chaque appel
 
 ### Phase 9 — Admin
-- [x] Gestion des services (CRUD)
-- [x] Gestion des agents (créer, désactiver)
-- [ ] Gestion des guichets (interface dediee)
-- [x] Statistiques du jour (tickets traités, temps moyen)
+- [x] Gestion des services (CRUD + edition nom/prefixe)
+- [x] Gestion des agents (creer, editer, desactiver, mot de passe)
+- [x] Gestion des guichets (CountersPanel)
+- [x] Statistiques du jour (tickets traites, temps moyen, filtres service/agent)
 - [x] Réinitialisation manuelle de la file
+- [x] QR codes et URLs par service
+- [x] Horaires d'ouverture par service
+- [x] Upload du logo de l'application
+- [x] Changement de mot de passe agent (12 chars, regles)
 
 ### Phase 10 — Production
-- [x] Générer le QR code pointant vers `/` (`GET /api/qrcode`)
+- [x] Generer le QR code par service (`GET /api/qrcode?serviceId=ID`)
+- [x] Script de nettoyage minuit (`scripts/midnight-cleanup.ts`)
 - [ ] Configurer Traefik ou Caddy (HTTPS / Let's Encrypt)
-- [x] Tester le build Docker complet
-- [ ] Documenter le déploiement sur VPS Hostinger
+- [x] Tester le build Docker complet (Node.js 22)
+- [ ] Documenter le deploiement sur VPS Hostinger
 - [x] Mettre en place la purge RGPD automatique (`scripts/purge-rgpd.ts`)
 
 ---
@@ -228,14 +239,20 @@ docker compose logs -f app                        # Voir les logs de l'app
 npx tsx scripts/purge-rgpd.ts                     # Purge manuelle des donnees > 30 jours
 
 # QR Code
-# Acceder a /api/qrcode?url=https://votre-domaine.fr pour generer le QR code SVG
+# Acceder a /api/qrcode?serviceId=ID pour generer le QR code SVG d'un service
+# Acceder a /api/qrcode (sans parametre) pour lister les services et leurs URLs
+
+# Nettoyage minuit
+npx tsx scripts/midnight-cleanup.ts           # Fermer les tickets ouverts en fin de journee
 ```
 
 ---
 
 ## Comptes de test (après seed)
 
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Admin | admin@wooz.next | WoozNext14!! |
-| Agent | agent@wooz.next | WoozNext14!! |
+| Rôle | Email | Mot de passe | Service |
+|---|---|---|---|
+| Admin | admin@wooz.next | WoozNext14!! | - |
+| Agent | agent@wooz.next | WoozNext14!! | - |
+| Agent ECI | agent-educ@wooz.next | WoozNext14!! | ETAT CIVIL |
+| Agent CMS | agent-cms@wooz.next | WoozNext14!! | CENTRE DE SANTE |
