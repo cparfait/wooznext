@@ -252,6 +252,6 @@ npx tsx scripts/midnight-cleanup.ts           # Fermer les tickets ouverts en fi
 
 | Rôle | Email | Mot de passe | Service |
 |---|---|---|---|
-| Admin | admin | admin | - |
-| Agent | agent1 | agent | SUPPORT |
-| Agent | agent2 | agent | ACCUEIL |
+| Admin | admin@wooz.next | admin | - |
+| Agent | agent1@wooz.next | agent | SUPPORT |
+| Agent | agent2@wooz.next | agent | ACCUEIL |

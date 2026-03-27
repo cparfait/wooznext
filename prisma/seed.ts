@@ -24,11 +24,11 @@ async function main() {
 
   // Create admin account
   await prisma.agent.upsert({
-    where: { email: 'admin' },
+    where: { email: 'admin@wooz.next' },
     update: { passwordHash: adminPwd },
     create: {
       name: 'Administrateur',
-      email: 'admin',
+      email: 'admin@wooz.next',
       passwordHash: adminPwd,
       role: Role.ADMIN,
     },
@@ -36,11 +36,11 @@ async function main() {
 
   // Create agent accounts
   await prisma.agent.upsert({
-    where: { email: 'agent1' },
+    where: { email: 'agent1@wooz.next' },
     update: { passwordHash: agentPwd, serviceId: support.id },
     create: {
       name: 'Agent 1',
-      email: 'agent1',
+      email: 'agent1@wooz.next',
       passwordHash: agentPwd,
       role: Role.AGENT,
       serviceId: support.id,
@@ -48,11 +48,11 @@ async function main() {
   });
 
   await prisma.agent.upsert({
-    where: { email: 'agent2' },
+    where: { email: 'agent2@wooz.next' },
     update: { passwordHash: agentPwd, serviceId: accueil.id },
     create: {
       name: 'Agent 2',
-      email: 'agent2',
+      email: 'agent2@wooz.next',
       passwordHash: agentPwd,
       role: Role.AGENT,
       serviceId: accueil.id,
@@ -61,9 +61,9 @@ async function main() {
 
   console.log('Seed completed!');
   console.log('Services: SUPPORT (SUP), ACCUEIL (ACC)');
-  console.log('Admin:    admin / admin');
-  console.log('Agent 1:  agent1 / agent  (SUPPORT)');
-  console.log('Agent 2:  agent2 / agent  (ACCUEIL)');
+  console.log('Admin:    admin@wooz.next / admin');
+  console.log('Agent 1:  agent1@wooz.next / agent  (SUPPORT)');
+  console.log('Agent 2:  agent2@wooz.next / agent  (ACCUEIL)');
 }
 
 main()
