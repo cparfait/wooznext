@@ -6,13 +6,14 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 
 ## Fonctionnalites
 
-- **Vue Visiteur** (mobile) : prise de ticket par QR code, suivi en temps reel, notification quand c'est son tour
-- **Vue Agent** : appel du suivant, appel manuel, retour en file, marquage absent
-- **Vue Admin** : gestion des services et agents, statistiques du jour, reinitialisation de la file
-- **Affichage Public** (Chromecast) : numero en cours en grand format, mise a jour instantanee
-- **QR Code** : generation automatique via `/api/qrcode`
+- **Vue Visiteur** (mobile-first) : prise de ticket par QR code, suivi en temps reel, son de notification, confetti quand c'est son tour
+- **Vue Agent** : appel du suivant, appel manuel, retour en file, marquage absent, ajout de ticket, changement de mot de passe
+- **Vue Admin** : gestion des services (CRUD, prefixe, horaires), agents, guichets, statistiques filtrees, upload du logo, QR codes par service
+- **Affichage Public** (Chromecast) : ticket en cours en grand format, bandeau lateral avec liste des tickets appeles et guichets, flash + son a chaque appel
+- **QR Code** : generation automatique par service via `/api/qrcode?serviceId=ID`
 - **Temps reel** : Socket.IO pour toutes les mises a jour
 - **RGPD** : purge automatique des donnees visiteurs apres 30 jours
+- **Nettoyage minuit** : fermeture automatique des tickets ouverts en fin de journee
 
 ## Stack technique
 
@@ -30,7 +31,7 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 ## Prerequis
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac/Linux)
-- [Node.js 20 LTS](https://nodejs.org/)
+- [Node.js 22 LTS](https://nodejs.org/)
 - [Git](https://git-scm.com/)
 
 ## Installation locale (Windows / Mac / Linux)
@@ -38,14 +39,14 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 ### 1. Cloner le projet
 
 ```bash
-git clone https://github.com/wooznext/wooznext.git
+git clone https://github.com/cparfait/wooznext.git
 cd wooznext
 ```
 
 ### 2. Configurer les variables d'environnement
 
 ```bash
-cp .env.example .env
+cp .env.example .env       # Windows : copy .env.example .env
 ```
 
 Editez le fichier `.env` :
@@ -90,31 +91,34 @@ npm run dev
 
 L'application est accessible sur **http://localhost:3000**.
 
-## Tester les 4 interfaces
+## Tester les interfaces
 
 | Interface | URL | Acces |
 |---|---|---|
-| Visiteur | http://localhost:3000 | Public |
+| Visiteur | http://localhost:3000/?service=ID | Public (via QR code) |
 | Connexion Agent | http://localhost:3000/agent/login | Public |
 | Dashboard Agent | http://localhost:3000/agent | Apres connexion |
 | Admin | http://localhost:3000/admin | Compte admin |
-| Affichage Public | http://localhost:3000/display | Public |
-| QR Code | http://localhost:3000/api/qrcode | Public |
+| Affichage Public | http://localhost:3000/display/SERVICE_ID | Public |
+| QR Code (liste) | http://localhost:3000/api/qrcode | Public (JSON) |
+| QR Code (SVG) | http://localhost:3000/api/qrcode?serviceId=ID | Public |
 
 ### Comptes de test
 
-| Role | Email | Mot de passe |
-|---|---|---|
-| Admin | admin@mairie.fr | admin123 |
-| Agent | agent@mairie.fr | agent123 |
+| Role | Email | Mot de passe | Service |
+|---|---|---|---|
+| Admin | admin@wooz.next | WoozNext14!! | - |
+| Agent | agent@wooz.next | WoozNext14!! | - |
+| Agent ECI | agent-educ@wooz.next | WoozNext14!! | ETAT CIVIL |
+| Agent CMS | agent-cms@wooz.next | WoozNext14!! | CENTRE DE SANTE |
 
 ### Parcours de test recommande
 
-1. **Visiteur** : ouvrez http://localhost:3000 sur votre telephone (meme reseau Wi-Fi) ou dans un onglet mobile. Saisissez un numero de telephone, selectionnez un service, prenez un ticket.
-2. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3000/agent/login avec `agent@mairie.fr` / `agent123`. Cliquez "Suivant" pour appeler le visiteur.
-3. **Temps reel** : observez la mise a jour instantanee sur la vue visiteur (popup "C'est votre tour !").
-4. **Affichage public** : ouvrez http://localhost:3000/display dans un troisieme onglet pour voir le numero appele en grand format.
-5. **Admin** : connectez-vous sur http://localhost:3000/admin avec `admin@mairie.fr` / `admin123` pour voir les statistiques et gerer les services/agents.
+1. **Admin** : connectez-vous sur http://localhost:3000/admin avec `admin@wooz.next` / `WoozNext14!!`. Les services ETAT CIVIL et CENTRE DE SANTE sont deja crees. Cliquez "Liens / QR" sur un service pour obtenir l'URL visiteur.
+2. **Visiteur** : ouvrez l'URL visiteur (avec `?service=ID`) sur votre telephone ou dans un onglet mobile. Saisissez un numero de telephone, prenez un ticket.
+3. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3000/agent/login avec `agent-educ@wooz.next` / `WoozNext14!!`. Cliquez "Suivant" pour appeler le visiteur.
+4. **Temps reel** : observez la mise a jour instantanee sur la vue visiteur (son + popup "C'est votre tour !").
+5. **Affichage public** : ouvrez l'URL d'affichage (`/display/SERVICE_ID`) dans un troisieme onglet pour voir le bandeau des tickets appeles.
 
 ## Deploiement en production (VPS)
 
@@ -129,7 +133,7 @@ curl -fsSL https://get.docker.com | sh
 ### 2. Cloner et configurer
 
 ```bash
-git clone https://github.com/wooznext/wooznext.git
+git clone https://github.com/cparfait/wooznext.git
 cd wooznext
 cp .env.example .env
 ```
@@ -190,11 +194,18 @@ docker compose up -d --build      # Build et lancer tout
 docker compose logs -f app        # Voir les logs
 docker compose down               # Arreter tout
 
+# Reinitialiser la base (tout effacer + reseed)
+npx prisma migrate reset
+
 # RGPD
 npx tsx scripts/purge-rgpd.ts     # Purge manuelle des donnees > 30 jours
 
+# Nettoyage minuit
+npx tsx scripts/midnight-cleanup.ts  # Fermer les tickets ouverts
+
 # QR Code
-# Acceder a /api/qrcode?url=https://votre-domaine.fr
+# /api/qrcode?serviceId=ID         -> QR code SVG d'un service
+# /api/qrcode                      -> Liste des services et URLs
 ```
 
 ## Architecture du projet
