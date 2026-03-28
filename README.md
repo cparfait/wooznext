@@ -109,16 +109,15 @@ L'application est accessible sur **http://localhost:3000**.
 
 | Role | Email | Mot de passe | Service |
 |---|---|---|---|
-| Admin | admin@wooz.next | WoozNext14!! | - |
-| Agent | agent@wooz.next | WoozNext14!! | - |
-| Agent ECI | agent-educ@wooz.next | WoozNext14!! | ETAT CIVIL |
-| Agent CMS | agent-cms@wooz.next | WoozNext14!! | CENTRE DE SANTE |
+| Admin | admin@wooz.next | admin | - |
+| Agent | agent1@wooz.next | agent | SUPPORT |
+| Agent | agent2@wooz.next | agent | ACCUEIL |
 
 ### Parcours de test recommande
 
-1. **Admin** : connectez-vous sur http://localhost:3000/admin avec `admin@wooz.next` / `WoozNext14!!`. Les services ETAT CIVIL et CENTRE DE SANTE sont deja crees. Cliquez "Liens / QR" sur un service pour obtenir l'URL visiteur.
+1. **Admin** : connectez-vous sur http://localhost:3000/admin avec `admin@wooz.next` / `admin`. Les services SUPPORT et ACCUEIL sont deja crees. Cliquez "Liens / QR" sur un service pour obtenir l'URL visiteur.
 2. **Visiteur** : ouvrez l'URL visiteur (avec `?service=ID`) sur votre telephone ou dans un onglet mobile. Saisissez un numero de telephone, prenez un ticket.
-3. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3000/agent/login avec `agent-educ@wooz.next` / `WoozNext14!!`. Cliquez "Suivant" pour appeler le visiteur.
+3. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3000/agent/login avec `agent1@wooz.next` / `agent`. Cliquez "Suivant" pour appeler le visiteur.
 4. **Temps reel** : observez la mise a jour instantanee sur la vue visiteur (son + popup "C'est votre tour !").
 5. **Affichage public** : ouvrez l'URL d'affichage (`/display/SERVICE_ID`) dans un troisieme onglet pour voir le bandeau des tickets appeles.
 
