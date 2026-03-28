@@ -12,10 +12,12 @@ export async function getAgentSession() {
 }
 
 /**
- * Get admin session or null. Returns null if user is not ADMIN.
+ * Get admin session or null.
+ * Returns session for ADMIN users (full access) or AGENT users (service-scoped).
  */
 export async function getAdminSession() {
   const session = await getAgentSession();
-  if (!session || session.user.role !== 'ADMIN') return null;
+  if (!session) return null;
+  if (session.user.role !== 'ADMIN' && session.user.role !== 'AGENT') return null;
   return session;
 }

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { label: 'asc' },
       include: {
-        agent: { select: { id: true, name: true } },
+        agent: { select: { id: true, firstName: true, lastName: true } },
         currentTicket: { select: { id: true, displayCode: true } },
       },
     });
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         serviceId: parsed.data.serviceId,
       },
       include: {
-        agent: { select: { id: true, name: true } },
+        agent: { select: { id: true, firstName: true, lastName: true } },
         currentTicket: { select: { id: true, displayCode: true } },
       },
     });

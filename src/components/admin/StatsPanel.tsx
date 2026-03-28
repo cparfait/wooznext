@@ -72,18 +72,19 @@ const PERIOD_LABELS: Record<Period, string> = {
   year: '12 derniers mois',
 };
 
-export default function StatsPanel() {
+export default function StatsPanel({ serviceScope }: { serviceScope?: string | null }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [resetting, setResetting] = useState(false);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [agents, setAgents] = useState<AgentOption[]>([]);
-  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState(serviceScope || '');
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [period, setPeriod] = useState<Period>('today');
 
   const fetchStats = useCallback(async () => {
     const params = new URLSearchParams();
-    if (selectedServiceId) params.set('serviceId', selectedServiceId);
+    const effectiveServiceId = serviceScope || selectedServiceId;
+    if (effectiveServiceId) params.set('serviceId', effectiveServiceId);
     if (selectedAgentId) params.set('agentId', selectedAgentId);
     const { from, to } = getPeriodDates(period);
     params.set('from', from);
@@ -105,7 +106,7 @@ export default function StatsPanel() {
       }
       if (aRes.ok) {
         const data = await aRes.json();
-        setAgents((data.agents || []).map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })));
+        setAgents((data.agents || []).map((a: { id: string; firstName: string; lastName: string }) => ({ id: a.id, name: `${a.firstName} ${a.lastName}` })));
       }
     }
     loadFilters();

@@ -1,25 +1,37 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import StatsPanel from './StatsPanel';
 import ServicesPanel from './ServicesPanel';
 import AgentsPanel from './AgentsPanel';
-import CountersPanel from './CountersPanel';
 import SettingsPanel from './SettingsPanel';
 
-type Tab = 'stats' | 'services' | 'agents' | 'counters' | 'settings';
+type Tab = 'stats' | 'services' | 'agents' | 'settings';
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  userRole: string;
+  userServiceId: string | null;
+}
+
+export default function AdminDashboard({ userRole, userServiceId }: AdminDashboardProps) {
+  const router = useRouter();
+  const isFullAdmin = userRole === 'ADMIN';
+
+  const tabs: { key: Tab; label: string }[] = isFullAdmin
+    ? [
+        { key: 'stats', label: 'Statistiques' },
+        { key: 'services', label: 'Services' },
+        { key: 'agents', label: 'Agents' },
+        { key: 'settings', label: 'Parametres' },
+      ]
+    : [
+        { key: 'stats', label: 'Statistiques' },
+        { key: 'services', label: 'Mon service' },
+      ];
+
   const [tab, setTab] = useState<Tab>('stats');
-
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'stats', label: 'Statistiques' },
-    { key: 'services', label: 'Services' },
-    { key: 'agents', label: 'Agents' },
-    { key: 'counters', label: 'Guichets' },
-    { key: 'settings', label: 'Parametres' },
-  ];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -27,12 +39,22 @@ export default function AdminDashboard() {
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <h1 className="text-lg font-bold text-gray-900">Administration</h1>
-          <button
-            onClick={() => signOut({ callbackUrl: '/agent/login' })}
-            className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-          >
-            Deconnexion
-          </button>
+          <div className="flex items-center gap-2">
+            {!isFullAdmin && (
+              <button
+                onClick={() => router.push('/agent')}
+                className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                Retour agent
+              </button>
+            )}
+            <button
+              onClick={() => signOut({ callbackUrl: '/agent/login' })}
+              className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              Deconnexion
+            </button>
+          </div>
         </div>
       </header>
 
@@ -57,11 +79,10 @@ export default function AdminDashboard() {
 
       {/* Content */}
       <div className="mx-auto max-w-7xl p-4">
-        {tab === 'stats' && <StatsPanel />}
-        {tab === 'services' && <ServicesPanel />}
-        {tab === 'agents' && <AgentsPanel />}
-        {tab === 'counters' && <CountersPanel />}
-        {tab === 'settings' && <SettingsPanel />}
+        {tab === 'stats' && <StatsPanel serviceScope={isFullAdmin ? null : userServiceId} />}
+        {tab === 'services' && <ServicesPanel serviceScope={isFullAdmin ? null : userServiceId} />}
+        {isFullAdmin && tab === 'agents' && <AgentsPanel />}
+        {isFullAdmin && tab === 'settings' && <SettingsPanel />}
       </div>
     </main>
   );

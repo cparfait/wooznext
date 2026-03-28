@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 
 interface Agent {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: string;
   isActive: boolean;
@@ -22,7 +23,7 @@ export default function AgentsPanel() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'AGENT', serviceId: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'AGENT', serviceId: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,7 +33,7 @@ export default function AgentsPanel() {
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'AGENT', serviceId: '', password: '' });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', role: 'AGENT', serviceId: '', password: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -66,7 +67,7 @@ export default function AgentsPanel() {
     });
 
     if (res.ok) {
-      setForm({ name: '', email: '', password: '', role: 'AGENT', serviceId: '' });
+      setForm({ firstName: '', lastName: '', email: '', password: '', role: 'AGENT', serviceId: '' });
       setShowForm(false);
       await fetchAgents();
     } else {
@@ -100,7 +101,8 @@ export default function AgentsPanel() {
   function startEdit(agent: Agent) {
     setEditingId(agent.id);
     setEditForm({
-      name: agent.name,
+      firstName: agent.firstName,
+      lastName: agent.lastName,
       email: agent.email,
       role: agent.role,
       serviceId: agent.serviceId || '',
@@ -121,7 +123,8 @@ export default function AgentsPanel() {
     setEditLoading(true);
 
     const payload: Record<string, unknown> = {
-      name: editForm.name,
+      firstName: editForm.firstName,
+      lastName: editForm.lastName,
       email: editForm.email,
       role: editForm.role,
       serviceId: editForm.serviceId || null,
@@ -159,14 +162,24 @@ export default function AgentsPanel() {
       ) : (
         <form onSubmit={handleCreate} className="space-y-3 rounded-xl bg-white p-4 shadow-sm">
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Nom"
-            required
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-          />
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={form.firstName}
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+              placeholder="Prenom"
+              required
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            />
+            <input
+              type="text"
+              value={form.lastName}
+              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+              placeholder="Nom"
+              required
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            />
+          </div>
           <input
             type="email"
             value={form.email}
@@ -233,16 +246,19 @@ export default function AgentsPanel() {
             >
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">{a.name}</span>
+                  <span className="font-medium text-gray-900">{a.firstName} {a.lastName}</span>
                   <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                     a.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                   }`}>
                     {a.role}
                   </span>
+                  {a.service && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                      {a.service.name}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-gray-500">
-                  {a.email} {a.service ? `- ${a.service.name}` : ''}
-                </p>
+                <p className="text-xs text-gray-500">{a.email}</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -297,14 +313,24 @@ export default function AgentsPanel() {
                 className="space-y-3 rounded-b-xl border-t border-gray-100 bg-gray-50 p-4"
               >
                 {editError && <p className="text-sm text-red-600">{editError}</p>}
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  placeholder="Nom"
-                  required
-                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                />
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={editForm.firstName}
+                    onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                    placeholder="Prenom"
+                    required
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.lastName}
+                    onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                    placeholder="Nom"
+                    required
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
                 <input
                   type="email"
                   value={editForm.email}

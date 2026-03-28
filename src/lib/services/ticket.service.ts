@@ -101,7 +101,7 @@ export async function getTicketById(id: string) {
     include: {
       service: true,
       visitor: true,
-      calledBy: { select: { id: true, name: true } },
+      calledBy: { select: { id: true, firstName: true, lastName: true } },
     },
   });
 }

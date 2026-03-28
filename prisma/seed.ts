@@ -27,7 +27,8 @@ async function main() {
     where: { email: 'admin@wooz.next' },
     update: { passwordHash: adminPwd },
     create: {
-      name: 'Administrateur',
+      firstName: 'Admin',
+      lastName: 'Wooznext',
       email: 'admin@wooz.next',
       passwordHash: adminPwd,
       role: Role.ADMIN,
@@ -39,7 +40,8 @@ async function main() {
     where: { email: 'agent1@wooz.next' },
     update: { passwordHash: agentPwd, serviceId: support.id },
     create: {
-      name: 'Agent 1',
+      firstName: 'Jean',
+      lastName: 'Dupont',
       email: 'agent1@wooz.next',
       passwordHash: agentPwd,
       role: Role.AGENT,
@@ -51,7 +53,8 @@ async function main() {
     where: { email: 'agent2@wooz.next' },
     update: { passwordHash: agentPwd, serviceId: accueil.id },
     create: {
-      name: 'Agent 2',
+      firstName: 'Marie',
+      lastName: 'Martin',
       email: 'agent2@wooz.next',
       passwordHash: agentPwd,
       role: Role.AGENT,

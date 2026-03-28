@@ -10,6 +10,7 @@ interface Service {
   feedUrl: string | null;
   feedActive: boolean;
   tickerMessage: string | null;
+  tickerActive: boolean;
   tickerPosition: string;
   tickerHeight: number;
   tickerBgColor: string;
@@ -233,17 +234,167 @@ function ServiceLinks({ serviceId }: { serviceId: string }) {
   );
 }
 
+interface Counter {
+  id: string;
+  label: string;
+  isActive: boolean;
+  agent: { id: string; firstName: string; lastName: string } | null;
+  currentTicket: { id: string; displayCode: string } | null;
+}
+
+function CountersEditor({ serviceId }: { serviceId: string }) {
+  const [counters, setCounters] = useState<Counter[]>([]);
+  const [newLabel, setNewLabel] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const fetchCounters = useCallback(async () => {
+    const res = await fetch(`/api/admin/counters?serviceId=${serviceId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setCounters(data.counters);
+    }
+  }, [serviceId]);
+
+  useEffect(() => {
+    fetchCounters();
+  }, [fetchCounters]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    const label = newLabel.trim() || `Guichet ${counters.length + 1}`;
+    const res = await fetch('/api/admin/counters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, serviceId }),
+    });
+    if (res.ok) {
+      setNewLabel('');
+      await fetchCounters();
+    }
+    setLoading(false);
+  }
+
+  async function handleRename(id: string) {
+    if (!editingLabel.trim()) return;
+    const res = await fetch(`/api/admin/counters/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: editingLabel.trim() }),
+    });
+    if (res.ok) {
+      setEditingId(null);
+      setEditingLabel('');
+      await fetchCounters();
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const res = await fetch(`/api/admin/counters/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setDeleteConfirmId(null);
+      await fetchCounters();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Impossible de supprimer ce guichet.');
+      setDeleteConfirmId(null);
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      <form onSubmit={handleCreate} className="flex gap-2">
+        <input
+          type="text"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder={`Guichet ${counters.length + 1}`}
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+        >
+          Ajouter
+        </button>
+      </form>
+
+      {counters.length === 0 && (
+        <p className="text-xs text-gray-400">Aucun guichet pour ce service.</p>
+      )}
+
+      <div className="space-y-1.5">
+        {counters.map((c) => (
+          <div key={c.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              {editingId === c.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editingLabel}
+                    onChange={(e) => setEditingLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRename(c.id);
+                      if (e.key === 'Escape') { setEditingId(null); setEditingLabel(''); }
+                    }}
+                    autoFocus
+                    className="rounded border border-primary-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                  />
+                  <button onClick={() => handleRename(c.id)} className="text-xs font-medium text-primary-600 hover:underline">OK</button>
+                  <button onClick={() => { setEditingId(null); setEditingLabel(''); }} className="text-xs text-gray-400 hover:underline">Annuler</button>
+                </div>
+              ) : (
+                <div>
+                  <span
+                    className="cursor-pointer text-sm font-medium text-gray-900 hover:text-primary-600"
+                    onClick={() => { setEditingId(c.id); setEditingLabel(c.label); }}
+                    title="Cliquer pour renommer"
+                  >
+                    {c.label}
+                  </span>
+                  <span className="ml-2 text-xs text-gray-400">
+                    {c.agent ? `${c.agent.firstName} ${c.agent.lastName}` : 'Libre'}
+                    {c.currentTicket && ` - ${c.currentTicket.displayCode}`}
+                  </span>
+                </div>
+              )}
+            </div>
+            {editingId !== c.id && (
+              <div className="ml-2 flex items-center gap-1">
+                {deleteConfirmId === c.id ? (
+                  <>
+                    <button onClick={() => handleDelete(c.id)} className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white hover:bg-red-600">Confirmer</button>
+                    <button onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-200">Annuler</button>
+                  </>
+                ) : (
+                  <button onClick={() => setDeleteConfirmId(c.id)} className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50">Supprimer</button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DisplaySettings({
   serviceId,
   initialFeedUrl,
   initialFeedActive,
   initialTickerMessage,
+  initialTickerActive,
   onUpdate,
 }: {
   serviceId: string;
   initialFeedUrl: string | null;
   initialFeedActive: boolean;
   initialTickerMessage: string | null;
+  initialTickerActive: boolean;
   onUpdate: () => void;
 }) {
   const [feedUrl, setFeedUrl] = useState(initialFeedUrl || '');
@@ -253,6 +404,7 @@ function DisplaySettings({
   const [feedMsg, setFeedMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [ticker, setTicker] = useState(initialTickerMessage || '');
+  const [tickerActive, setTickerActive] = useState(initialTickerActive);
   const [tickerDirty, setTickerDirty] = useState(false);
   const [tickerLoading, setTickerLoading] = useState(false);
   const [tickerMsg, setTickerMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -418,9 +570,36 @@ function DisplaySettings({
 
       {/* Ticker message */}
       <div>
-        <p className="mb-1 text-xs font-medium text-gray-500">
-          Message defilant urgent (bandeau rouge en bas de l&apos;ecran)
-        </p>
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-xs font-medium text-gray-500">
+            Message defilant urgent (bandeau rouge en bas de l&apos;ecran)
+          </p>
+          {initialTickerMessage && (
+            <button
+              onClick={async () => {
+                setTickerLoading(true);
+                const res = await fetch(`/api/admin/services/${serviceId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tickerActive: !tickerActive }),
+                });
+                if (res.ok) {
+                  setTickerActive(!tickerActive);
+                  onUpdate();
+                }
+                setTickerLoading(false);
+              }}
+              disabled={tickerLoading}
+              className={`rounded-lg px-2 py-1 text-xs font-medium ${
+                tickerActive
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {tickerActive ? 'Actif' : 'Desactive'}
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <input
             type="text"
@@ -459,7 +638,7 @@ function DisplaySettings({
   );
 }
 
-export default function ServicesPanel() {
+export default function ServicesPanel({ serviceScope }: { serviceScope?: string | null }) {
   const [services, setServices] = useState<Service[]>([]);
   const [name, setName] = useState('');
   const [prefix, setPrefix] = useState('');
@@ -467,6 +646,7 @@ export default function ServicesPanel() {
   const [expandedHours, setExpandedHours] = useState<string | null>(null);
   const [expandedLinks, setExpandedLinks] = useState<string | null>(null);
   const [expandedDisplay, setExpandedDisplay] = useState<string | null>(null);
+  const [expandedCounters, setExpandedCounters] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -477,9 +657,10 @@ export default function ServicesPanel() {
     const res = await fetch('/api/admin/services');
     if (res.ok) {
       const data = await res.json();
-      setServices(data.services);
+      const all = data.services as Service[];
+      setServices(serviceScope ? all.filter((s) => s.id === serviceScope) : all);
     }
-  }, []);
+  }, [serviceScope]);
 
   useEffect(() => {
     fetchServices();
@@ -554,34 +735,40 @@ export default function ServicesPanel() {
     setExpandedDisplay((prev) => (prev === id ? null : id));
   }
 
+  function toggleCounters(id: string) {
+    setExpandedCounters((prev) => (prev === id ? null : id));
+  }
+
   return (
     <div className="space-y-6">
-      {/* Create form */}
-      <form onSubmit={handleCreate} className="flex gap-3">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nom du service"
-          required
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-        />
-        <input
-          type="text"
-          value={prefix}
-          onChange={(e) => setPrefix(e.target.value)}
-          placeholder="Prefixe"
-          maxLength={5}
-          className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
-        >
-          Ajouter
-        </button>
-      </form>
+      {/* Create form (admin only) */}
+      {!serviceScope && (
+        <form onSubmit={handleCreate} className="flex gap-3">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nom du service"
+            required
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+          />
+          <input
+            type="text"
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
+            placeholder="Prefixe"
+            maxLength={5}
+            className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+          >
+            Ajouter
+          </button>
+        </form>
+      )}
 
       {/* List */}
       <div className="space-y-2">
@@ -653,6 +840,16 @@ export default function ServicesPanel() {
                     className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
                   >
                     Modifier
+                  </button>
+                  <button
+                    onClick={() => toggleCounters(s.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                      expandedCounters === s.id
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Guichets
                   </button>
                   <button
                     onClick={() => toggleDisplay(s.id)}
@@ -732,6 +929,9 @@ export default function ServicesPanel() {
               <p className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>
             )}
 
+            {/* Counters editor */}
+            {expandedCounters === s.id && <CountersEditor serviceId={s.id} />}
+
             {/* Display settings (feed + ticker) */}
             {expandedDisplay === s.id && (
               <DisplaySettings
@@ -739,6 +939,7 @@ export default function ServicesPanel() {
                 initialFeedUrl={s.feedUrl}
                 initialFeedActive={s.feedActive}
                 initialTickerMessage={s.tickerMessage}
+                initialTickerActive={s.tickerActive}
                 onUpdate={fetchServices}
               />
             )}

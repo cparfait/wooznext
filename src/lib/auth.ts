@@ -36,7 +36,7 @@ export const authOptions: AuthOptions = {
 
         return {
           id: agent.id,
-          name: agent.name,
+          name: `${agent.firstName} ${agent.lastName}`,
           email: agent.email,
           role: agent.role,
           serviceId: agent.serviceId,

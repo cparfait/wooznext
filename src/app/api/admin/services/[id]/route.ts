@@ -10,6 +10,7 @@ const updateServiceSchema = z.object({
   feedUrl: z.string().url().nullable().optional(),
   feedActive: z.boolean().optional(),
   tickerMessage: z.string().nullable().optional(),
+  tickerActive: z.boolean().optional(),
   tickerPosition: z.enum(['top', 'middle', 'bottom']).optional(),
   tickerHeight: z.number().int().min(30).max(120).optional(),
   tickerBgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),

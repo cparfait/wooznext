@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 
 const createAgentSchema = z.object({
-  name: z.string().min(1, 'Nom requis'),
+  firstName: z.string().min(1, 'Prenom requis'),
+  lastName: z.string().min(1, 'Nom requis'),
   email: z.string().email('Email invalide'),
   password: z.string().min(6, 'Mot de passe trop court (min 6)'),
   role: z.enum(['ADMIN', 'AGENT']).default('AGENT'),
@@ -18,10 +19,11 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
     const agents = await prisma.agent.findMany({
-      orderBy: { name: 'asc' },
+      orderBy: { lastName: 'asc' },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
         isActive: true,
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const agent = await prisma.agent.create({
       data: { ...data, passwordHash },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true },
     });
 
     return NextResponse.json({ agent }, { status: 201 });

@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 
 const updateAgentSchema = z.object({
-  name: z.string().min(1).optional(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   password: z.string().min(6).optional(),
   role: z.enum(['ADMIN', 'AGENT']).optional(),
@@ -37,7 +38,7 @@ export async function PATCH(
     const agent = await prisma.agent.update({
       where: { id: params.id },
       data: updateData,
-      select: { id: true, name: true, email: true, role: true, isActive: true },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true },
     });
 
     return NextResponse.json({ agent });

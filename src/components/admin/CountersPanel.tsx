@@ -15,7 +15,7 @@ interface Counter {
   serviceId: string;
   agentId: string | null;
   currentTicketId: string | null;
-  agent: { id: string; name: string } | null;
+  agent: { id: string; firstName: string; lastName: string } | null;
   currentTicket: { id: string; displayCode: string } | null;
 }
 
@@ -208,7 +208,7 @@ export default function CountersPanel() {
                   <p className="text-xs text-gray-500 mt-0.5">
                     {c.agent ? (
                       <span>
-                        Agent : <span className="font-medium text-gray-700">{c.agent.name}</span>
+                        Agent : <span className="font-medium text-gray-700">{c.agent.firstName} {c.agent.lastName}</span>
                       </span>
                     ) : (
                       <span className="text-green-500 font-medium">Libre</span>

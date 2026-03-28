@@ -2,6 +2,7 @@
 
 import { Session } from 'next-auth';
 import { signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { useServiceSocket } from '@/hooks/useSocket';
 import BottomSheet from './BottomSheet';
@@ -22,6 +23,7 @@ interface QueueStats {
   currentTicket: Ticket | null;
   waitingTickets: Ticket[];
   nextTicket: Ticket | null;
+  counterLabel: string | null;
 }
 
 interface AgentDashboardProps {
@@ -30,11 +32,13 @@ interface AgentDashboardProps {
 
 export default function AgentDashboard({ session }: AgentDashboardProps) {
   const { user } = session;
+  const router = useRouter();
   const [stats, setStats] = useState<QueueStats>({
     waitingCount: 0,
     currentTicket: null,
     waitingTickets: [],
     nextTicket: null,
+    counterLabel: null,
   });
   const [loading, setLoading] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
@@ -156,6 +160,22 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
     setLoading(false);
   }
 
+  // Recall ticket (re-notify visitor + display)
+  async function handleRecall() {
+    if (!stats.currentTicket) return;
+    setLoading(true);
+    try {
+      await fetch('/api/agent/recall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: stats.currentTicket.id }),
+      });
+    } catch {
+      // Silent fail
+    }
+    setLoading(false);
+  }
+
   const currentCode = stats.currentTicket?.displayCode ?? '---';
 
   return (
@@ -164,10 +184,23 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
       <div className="p-4">
         <div className="mx-auto flex max-w-md items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-800">{user.name}</p>
+            <p className="text-sm font-medium text-gray-800">
+              {user.name}
+              {stats.counterLabel && (
+                <span className="ml-2 rounded bg-white/50 px-1.5 py-0.5 text-xs font-normal text-gray-600">
+                  {stats.counterLabel}
+                </span>
+              )}
+            </p>
             <p className="text-xs text-gray-600">{user.serviceName}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/admin')}
+              className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+            >
+              Admin
+            </button>
             <button
               onClick={() => setShowPasswordChange(true)}
               className="rounded-lg px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300"
@@ -218,27 +251,36 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
 
           {/* Actions when serving someone */}
           {stats.currentTicket && (
-            <div className="flex gap-3">
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleNoShow}
+                  disabled={loading}
+                  className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-600 disabled:opacity-50"
+                >
+                  Absent
+                </button>
+                <button
+                  onClick={() => setReturnTicket(stats.currentTicket)}
+                  disabled={loading}
+                  className="flex-1 rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-orange-600 disabled:opacity-50"
+                >
+                  Retour file
+                </button>
+                <button
+                  onClick={handleComplete}
+                  disabled={loading}
+                  className="flex-1 rounded-xl bg-green-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-green-600 disabled:opacity-50"
+                >
+                  Termine
+                </button>
+              </div>
               <button
-                onClick={handleNoShow}
+                onClick={handleRecall}
                 disabled={loading}
-                className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-600 disabled:opacity-50"
+                className="w-full rounded-xl border border-blue-300 bg-blue-50/50 py-2.5 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100/50 disabled:opacity-50"
               >
-                Absent
-              </button>
-              <button
-                onClick={() => setReturnTicket(stats.currentTicket)}
-                disabled={loading}
-                className="flex-1 rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-orange-600 disabled:opacity-50"
-              >
-                Retour file
-              </button>
-              <button
-                onClick={handleComplete}
-                disabled={loading}
-                className="flex-1 rounded-xl bg-green-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-green-600 disabled:opacity-50"
-              >
-                Termine
+                Rappeler le visiteur
               </button>
             </div>
           )}

@@ -33,6 +33,7 @@ model Service {
   feedUrl        String?  @map("feed_url") // URL du flux JSON d'actualités pour l'affichage public
   feedActive     Boolean  @default(true) @map("feed_active") // Activer/desactiver le flux sans supprimer l'URL
   tickerMessage   String?  @map("ticker_message") // Message défilant urgent pour l'affichage public
+  tickerActive    Boolean  @default(true) @map("ticker_active") // Activer/desactiver le ticker sans supprimer le message
   tickerPosition  String   @default("bottom") @map("ticker_position") // top, middle, bottom
   tickerHeight    Int      @default(48) @map("ticker_height") // hauteur en px du bandeau
   tickerBgColor   String   @default("#dc2626") @map("ticker_bg_color") // couleur de fond
@@ -53,7 +54,8 @@ model Service {
 /// Agent de la collectivité (opérateur de guichet)
 model Agent {
   id           String   @id @default(cuid())
-  name         String
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         Role     @default(AGENT)

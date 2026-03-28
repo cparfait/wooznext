@@ -6,8 +6,8 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // Admin routes require ADMIN role
-    if (pathname.startsWith('/admin') && token?.role !== 'ADMIN') {
+    // Admin routes: allow ADMIN and AGENT (agents see only their service)
+    if (pathname.startsWith('/admin') && token?.role !== 'ADMIN' && token?.role !== 'AGENT') {
       return NextResponse.redirect(new URL('/agent', req.url));
     }
 

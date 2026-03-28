@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
         completedAt: true,
         calledById: true,
         calledBy: {
-          select: { id: true, name: true },
+          select: { id: true, firstName: true, lastName: true },
         },
       },
     });
@@ -150,7 +150,8 @@ export async function GET(request: NextRequest) {
     // Group by agent
     const agentMap = new Map<string, {
       id: string;
-      name: string;
+      firstName: string;
+      lastName: string;
       completed: number;
       noShow: number;
       totalServiceSeconds: number;
@@ -163,7 +164,8 @@ export async function GET(request: NextRequest) {
       if (!entry) {
         entry = {
           id: t.calledBy.id,
-          name: t.calledBy.name,
+          firstName: t.calledBy.firstName,
+          lastName: t.calledBy.lastName,
           completed: 0,
           noShow: 0,
           totalServiceSeconds: 0,
@@ -185,7 +187,7 @@ export async function GET(request: NextRequest) {
 
     const perAgent = Array.from(agentMap.values()).map((a) => ({
       id: a.id,
-      name: a.name,
+      name: `${a.firstName} ${a.lastName}`,
       completed: a.completed,
       noShow: a.noShow,
       avgServiceTimeSeconds: a.completedWithTime > 0

@@ -24,7 +24,7 @@ export default async function DisplayServicePage({ params }: DisplayServicePageP
     <PublicDisplay
       serviceId={service.id}
       initialData={{ ...data, lastCalledCode: data.currentCode }}
-      initialTickerMessage={service.tickerMessage ?? null}
+      initialTickerMessage={service.tickerActive ? (service.tickerMessage ?? null) : null}
       initialTickerConfig={{
         position: service.tickerPosition as 'top' | 'middle' | 'bottom',
         height: service.tickerHeight,

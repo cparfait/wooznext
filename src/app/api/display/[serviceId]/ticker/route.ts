@@ -12,6 +12,7 @@ export async function GET(
       where: { id: params.serviceId },
       select: {
         tickerMessage: true,
+        tickerActive: true,
         tickerPosition: true,
         tickerHeight: true,
         tickerBgColor: true,
@@ -21,7 +22,7 @@ export async function GET(
     });
 
     return NextResponse.json({
-      message: service?.tickerMessage ?? null,
+      message: (service?.tickerActive !== false ? service?.tickerMessage : null) ?? null,
       position: service?.tickerPosition ?? 'bottom',
       height: service?.tickerHeight ?? 48,
       bgColor: service?.tickerBgColor ?? '#dc2626',

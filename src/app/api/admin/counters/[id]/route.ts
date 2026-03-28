@@ -25,7 +25,7 @@ export async function PATCH(
       where: { id: params.id },
       data: { label: parsed.data.label },
       include: {
-        agent: { select: { id: true, name: true } },
+        agent: { select: { id: true, firstName: true, lastName: true } },
         currentTicket: { select: { id: true, displayCode: true } },
       },
     });
