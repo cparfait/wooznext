@@ -638,6 +638,52 @@ function DisplaySettings({
   );
 }
 
+function ResetServiceButton({ serviceId }: { serviceId: string }) {
+  const [resetting, setResetting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  async function handleReset() {
+    setResetting(true);
+    await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serviceId }),
+    });
+    setResetting(false);
+    setShowConfirm(false);
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-3">
+      {!showConfirm ? (
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
+        >
+          Reinitialiser la file
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-600">Annuler tous les tickets en attente ?</span>
+          <button
+            onClick={handleReset}
+            disabled={resetting}
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {resetting ? 'Reinitialisation...' : 'Confirmer'}
+          </button>
+          <button
+            onClick={() => setShowConfirm(false)}
+            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ServicesPanel({ serviceScope }: { serviceScope?: string | null }) {
   const [services, setServices] = useState<Service[]>([]);
   const [name, setName] = useState('');
@@ -928,6 +974,9 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
             {deleteError && deleteConfirm === s.id && (
               <p className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>
             )}
+
+            {/* Reset queue for this service */}
+            <ResetServiceButton serviceId={s.id} />
 
             {/* Counters editor */}
             {expandedCounters === s.id && <CountersEditor serviceId={s.id} />}

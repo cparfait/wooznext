@@ -1,6 +1,7 @@
 import { createServer } from 'http';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
+import { PrismaClient } from '@prisma/client';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -8,6 +9,8 @@ const port = parseInt(process.env.PORT || '3000', 10);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
+
+const prisma = new PrismaClient();
 
 function parseUrl(url: string) {
   const parsed = new URL(url, 'http://localhost');
@@ -50,8 +53,37 @@ app.prepare().then(() => {
       console.log(`[Socket.IO] ${socket.id} joined ticket:${ticketId}`);
     });
 
-    socket.on('disconnect', () => {
+    // Agent registers their ID so we can release their counter on disconnect
+    socket.on('agent:register', (agentId: string) => {
+      (socket as any).agentId = agentId;
+      console.log(`[Socket.IO] Agent ${agentId} registered on ${socket.id}`);
+    });
+
+    socket.on('disconnect', async () => {
+      const agentId = (socket as any).agentId;
       console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
+
+      if (agentId) {
+        // Check if this agent still has other active sockets (multiple tabs)
+        const sockets = await io.fetchSockets();
+        const stillConnected = sockets.some(
+          (s) => s.id !== socket.id && (s as any).agentId === agentId
+        );
+
+        if (!stillConnected) {
+          try {
+            const result = await prisma.counter.updateMany({
+              where: { agentId },
+              data: { agentId: null },
+            });
+            if (result.count > 0) {
+              console.log(`[Socket.IO] Released counter for agent ${agentId}`);
+            }
+          } catch (err) {
+            console.error(`[Socket.IO] Error releasing counter for agent ${agentId}:`, err);
+          }
+        }
+      }
     });
   });
 

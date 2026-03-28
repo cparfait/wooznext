@@ -74,7 +74,6 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 export default function StatsPanel({ serviceScope }: { serviceScope?: string | null }) {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [resetting, setResetting] = useState(false);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState(serviceScope || '');
@@ -117,14 +116,6 @@ export default function StatsPanel({ serviceScope }: { serviceScope?: string | n
     const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
   }, [fetchStats]);
-
-  async function handleReset() {
-    if (!confirm('Reinitialiser toute la file ? Tous les tickets en attente seront annules.')) return;
-    setResetting(true);
-    await fetch('/api/admin/reset', { method: 'POST' });
-    await fetchStats();
-    setResetting(false);
-  }
 
   function formatTime(seconds: number) {
     if (seconds === 0) return '--';
@@ -224,14 +215,6 @@ export default function StatsPanel({ serviceScope }: { serviceScope?: string | n
         </div>
       )}
 
-      {/* Reset */}
-      <button
-        onClick={handleReset}
-        disabled={resetting}
-        className="w-full rounded-xl border border-red-300 bg-red-50 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
-      >
-        {resetting ? 'Reinitialisation...' : 'Reinitialiser la file'}
-      </button>
     </div>
   );
 }

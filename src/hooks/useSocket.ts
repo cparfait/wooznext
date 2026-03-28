@@ -22,10 +22,12 @@ function getSocket(): Socket {
 /**
  * Hook to connect to Socket.IO and join a service room.
  * Calls onEvent when any of the specified events are received.
+ * If agentId is provided, registers the agent for presence tracking.
  */
 export function useServiceSocket(
   serviceId: string | null,
-  onEvent: (event: string, data: any) => void
+  onEvent: (event: string, data: any) => void,
+  agentId?: string | null
 ) {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
@@ -35,6 +37,10 @@ export function useServiceSocket(
 
     const socket = getSocket();
     socket.emit('join:service', serviceId);
+
+    if (agentId) {
+      socket.emit('agent:register', agentId);
+    }
 
     const events = ['queue:updated', 'ticket:called', 'ticket:completed'];
     const handler = (event: string) => (data: any) => {
@@ -50,7 +56,7 @@ export function useServiceSocket(
     return () => {
       handlers.forEach(({ event, handler: h }) => socket.off(event, h));
     };
-  }, [serviceId]);
+  }, [serviceId, agentId]);
 }
 
 /**

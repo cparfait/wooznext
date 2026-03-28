@@ -72,10 +72,10 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
     refreshQueue();
   }, [refreshQueue]);
 
-  // Real-time updates
+  // Real-time updates (also registers agent for presence tracking)
   useServiceSocket(user.serviceId, useCallback(() => {
     refreshQueue();
-  }, [refreshQueue]));
+  }, [refreshQueue]), user.id);
 
   // Call next visitor
   async function handleNext() {
