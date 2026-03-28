@@ -113,7 +113,9 @@ export default function PublicDisplay({
   useEffect(() => {
     fetch('/api/logo')
       .then((res) => {
-        if (res.ok) setLogoUrl('/api/logo');
+        if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
+          setLogoUrl('/api/logo');
+        }
       })
       .catch(() => {});
   }, []);
@@ -278,8 +280,9 @@ export default function PublicDisplay({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl}
-              alt="Logo"
+              alt=""
               className="block h-[70px] w-auto"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
         </div>

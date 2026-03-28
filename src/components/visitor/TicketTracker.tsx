@@ -34,7 +34,9 @@ export default function TicketTracker({
   useEffect(() => {
     audioRef.current = new Audio('/sounds/ding.wav');
     fetch('/api/logo').then((res) => {
-      if (res.ok) setLogoUrl('/api/logo');
+      if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
+        setLogoUrl('/api/logo');
+      }
     }).catch(() => {});
   }, []);
 
@@ -150,7 +152,7 @@ export default function TicketTracker({
         {/* Logo */}
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Logo" className="mb-6 h-14 w-auto object-contain sm:h-16" />
+          <img src={logoUrl} alt="" className="mb-6 h-14 w-auto object-contain sm:h-16" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         )}
 
         {/* Numero du ticket */}

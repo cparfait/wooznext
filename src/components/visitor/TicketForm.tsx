@@ -47,7 +47,9 @@ export default function TicketForm() {
 
   useEffect(() => {
     fetch('/api/logo').then((res) => {
-      if (res.ok) setLogoUrl('/api/logo');
+      if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
+        setLogoUrl('/api/logo');
+      }
     }).catch(() => {});
   }, []);
 
@@ -120,7 +122,7 @@ export default function TicketForm() {
     <div className="space-y-6">
       {logoUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
+        <img src={logoUrl} alt="" className="mx-auto h-14 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
       )}
 
       <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
