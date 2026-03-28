@@ -13,9 +13,9 @@ export default function SettingsPanel() {
   }, []);
 
   function checkLogo() {
-    fetch('/api/logo')
+    fetch(`/api/logo?t=${Date.now()}`)
       .then((res) => {
-        if (res.ok) {
+        if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
           setLogoUrl(`/api/logo?t=${Date.now()}`);
         } else {
           setLogoUrl(null);
@@ -88,8 +88,9 @@ export default function SettingsPanel() {
             <div className="flex h-20 w-40 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 p-2">
               <img
                 src={logoUrl}
-                alt="Logo actuel"
+                alt=""
                 className="max-h-full max-w-full object-contain"
+                onError={() => setLogoUrl(null)}
               />
             </div>
             <button

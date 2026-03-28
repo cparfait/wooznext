@@ -19,7 +19,7 @@ export async function GET() {
       return new NextResponse(buffer, {
         headers: {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=3600',
+          'Cache-Control': 'no-cache',
         },
       });
     }
