@@ -10,6 +10,11 @@ interface Service {
   feedUrl: string | null;
   feedActive: boolean;
   tickerMessage: string | null;
+  tickerPosition: string;
+  tickerHeight: number;
+  tickerBgColor: string;
+  tickerTextColor: string;
+  tickerFontSize: number;
   _count: { agents: number; counters: number };
   activeCounters: number;
   connectedAgents: number;
@@ -233,12 +238,22 @@ function DisplaySettings({
   initialFeedUrl,
   initialFeedActive,
   initialTickerMessage,
+  initialTickerPosition,
+  initialTickerHeight,
+  initialTickerBgColor,
+  initialTickerTextColor,
+  initialTickerFontSize,
   onUpdate,
 }: {
   serviceId: string;
   initialFeedUrl: string | null;
   initialFeedActive: boolean;
   initialTickerMessage: string | null;
+  initialTickerPosition: string;
+  initialTickerHeight: number;
+  initialTickerBgColor: string;
+  initialTickerTextColor: string;
+  initialTickerFontSize: number;
   onUpdate: () => void;
 }) {
   const [feedUrl, setFeedUrl] = useState(initialFeedUrl || '');
@@ -251,6 +266,13 @@ function DisplaySettings({
   const [tickerDirty, setTickerDirty] = useState(false);
   const [tickerLoading, setTickerLoading] = useState(false);
   const [tickerMsg, setTickerMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [tPosition, setTPosition] = useState(initialTickerPosition);
+  const [tHeight, setTHeight] = useState(initialTickerHeight);
+  const [tBgColor, setTBgColor] = useState(initialTickerBgColor);
+  const [tTextColor, setTTextColor] = useState(initialTickerTextColor);
+  const [tFontSize, setTFontSize] = useState(initialTickerFontSize);
+  const [tickerConfigDirty, setTickerConfigDirty] = useState(false);
 
   async function saveFeed() {
     setFeedLoading(true);
@@ -734,6 +756,11 @@ export default function ServicesPanel() {
                 initialFeedUrl={s.feedUrl}
                 initialFeedActive={s.feedActive}
                 initialTickerMessage={s.tickerMessage}
+                initialTickerPosition={s.tickerPosition}
+                initialTickerHeight={s.tickerHeight}
+                initialTickerBgColor={s.tickerBgColor}
+                initialTickerTextColor={s.tickerTextColor}
+                initialTickerFontSize={s.tickerFontSize}
                 onUpdate={fetchServices}
               />
             )}

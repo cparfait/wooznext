@@ -122,10 +122,11 @@ export default function TicketForm() {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
       )}
-      <h1 className="text-3xl font-bold text-gray-900">Bienvenue</h1>
 
       <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
         <div className="space-y-6">
+          <h1 className="text-3xl font-bold text-gray-900">Bienvenue</h1>
+
           {error && (
           <div className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-600">
             {error}
@@ -178,6 +179,9 @@ export default function TicketForm() {
                 className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-lg tracking-wider text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="06 12 34 56 78"
               />
+              <p className="mt-2 text-xs italic text-gray-400">
+                Votre numero de telephone n&apos;est pas conserve apres votre visite.
+              </p>
             </div>
 
             <button

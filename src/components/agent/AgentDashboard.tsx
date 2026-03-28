@@ -41,6 +41,16 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
   const [returnTicket, setReturnTicket] = useState<Ticket | null>(null);
   const [showAddTicket, setShowAddTicket] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  async function handleCloseCounter() {
+    try {
+      await fetch('/api/agent/counter', { method: 'DELETE' });
+      signOut({ callbackUrl: '/agent/login' });
+    } catch {
+      // Silent fail
+    }
+  }
 
   const refreshQueue = useCallback(async () => {
     try {
@@ -258,6 +268,15 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
               Ticket manuel
             </button>
           </div>
+
+          {/* Close counter */}
+          <button
+            onClick={() => setShowCloseConfirm(true)}
+            disabled={!!stats.currentTicket}
+            className="w-full rounded-xl border border-red-300 bg-red-50/50 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100/50 disabled:opacity-50"
+          >
+            Cloturer le guichet
+          </button>
         </div>
       </div>
 
@@ -286,6 +305,17 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
         serviceId={user.serviceId}
         onClose={() => setShowAddTicket(false)}
         onCreated={refreshQueue}
+      />
+
+      {/* Close counter confirmation */}
+      <ConfirmModal
+        visible={showCloseConfirm}
+        title="Cloturer le guichet"
+        message="Vous allez cloturer votre guichet et etre deconnecte. Confirmer ?"
+        confirmLabel="Cloturer"
+        cancelLabel="Annuler"
+        onConfirm={handleCloseCounter}
+        onCancel={() => setShowCloseConfirm(false)}
       />
 
       {/* Password change modal */}

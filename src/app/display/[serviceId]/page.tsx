@@ -24,8 +24,15 @@ export default async function DisplayServicePage({ params }: DisplayServicePageP
     <PublicDisplay
       serviceId={service.id}
       serviceName={service.name}
-      initialData={data}
+      initialData={{ ...data, lastCalledCode: data.currentCode }}
       initialTickerMessage={service.tickerMessage ?? null}
+      initialTickerConfig={{
+        position: service.tickerPosition as 'top' | 'middle' | 'bottom',
+        height: service.tickerHeight,
+        bgColor: service.tickerBgColor,
+        textColor: service.tickerTextColor,
+        fontSize: service.tickerFontSize,
+      }}
       initialHasFeed={!!service.feedUrl && service.feedActive}
     />
   );

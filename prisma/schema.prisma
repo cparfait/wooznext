@@ -32,7 +32,12 @@ model Service {
   isActive       Boolean  @default(true)
   feedUrl        String?  @map("feed_url") // URL du flux JSON d'actualités pour l'affichage public
   feedActive     Boolean  @default(true) @map("feed_active") // Activer/desactiver le flux sans supprimer l'URL
-  tickerMessage  String?  @map("ticker_message") // Message défilant urgent pour l'affichage public
+  tickerMessage   String?  @map("ticker_message") // Message défilant urgent pour l'affichage public
+  tickerPosition  String   @default("bottom") @map("ticker_position") // top, middle, bottom
+  tickerHeight    Int      @default(48) @map("ticker_height") // hauteur en px du bandeau
+  tickerBgColor   String   @default("#dc2626") @map("ticker_bg_color") // couleur de fond
+  tickerTextColor String   @default("#ffffff") @map("ticker_text_color") // couleur du texte
+  tickerFontSize  Int      @default(18) @map("ticker_font_size") // taille du texte en px
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
