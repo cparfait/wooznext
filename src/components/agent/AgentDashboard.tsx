@@ -41,6 +41,16 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
   const [returnTicket, setReturnTicket] = useState<Ticket | null>(null);
   const [showAddTicket, setShowAddTicket] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  async function handleCloseCounter() {
+    try {
+      await fetch('/api/agent/counter', { method: 'DELETE' });
+      signOut({ callbackUrl: '/agent/login' });
+    } catch {
+      // Silent fail
+    }
+  }
 
   const refreshQueue = useCallback(async () => {
     try {
@@ -197,7 +207,7 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
           {/* Current serving */}
           <div className="space-y-2">
             <h2 className="text-lg font-bold text-gray-900">
-              Actuellement en service
+              Actuellement au guichet
             </h2>
             <div className="mx-auto rounded-xl bg-gray-300/50 px-12 py-6">
               <span className="text-8xl font-black tracking-wider text-gray-900">
@@ -210,11 +220,11 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
           {stats.currentTicket && (
             <div className="flex gap-3">
               <button
-                onClick={handleComplete}
+                onClick={handleNoShow}
                 disabled={loading}
-                className="flex-1 rounded-xl bg-green-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-green-600 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-600 disabled:opacity-50"
               >
-                Termine
+                Absent
               </button>
               <button
                 onClick={() => setReturnTicket(stats.currentTicket)}
@@ -224,11 +234,11 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
                 Retour file
               </button>
               <button
-                onClick={handleNoShow}
+                onClick={handleComplete}
                 disabled={loading}
-                className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-600 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-green-500 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-green-600 disabled:opacity-50"
               >
-                Absent
+                Termine
               </button>
             </div>
           )}
@@ -239,7 +249,7 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
             disabled={loading || stats.waitingCount === 0}
             className="w-full rounded-xl bg-primary-500 py-4 text-lg font-semibold text-white shadow-md transition-colors hover:bg-primary-600 disabled:opacity-50"
           >
-            {loading ? 'Chargement...' : 'Suivant'}
+            {loading ? 'Chargement...' : 'Appeler le ticket suivant'}
           </button>
 
           {/* Secondary actions */}
@@ -255,9 +265,18 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
               onClick={() => setShowAddTicket(true)}
               className="flex-1 rounded-xl border border-gray-300 bg-white/50 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-white/80"
             >
-              Ajouter
+              Ticket manuel
             </button>
           </div>
+
+          {/* Close counter */}
+          <button
+            onClick={() => setShowCloseConfirm(true)}
+            disabled={!!stats.currentTicket}
+            className="w-full rounded-xl border border-red-300 bg-red-50/50 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100/50 disabled:opacity-50"
+          >
+            Cloturer le guichet
+          </button>
         </div>
       </div>
 
@@ -286,6 +305,17 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
         serviceId={user.serviceId}
         onClose={() => setShowAddTicket(false)}
         onCreated={refreshQueue}
+      />
+
+      {/* Close counter confirmation */}
+      <ConfirmModal
+        visible={showCloseConfirm}
+        title="Cloturer le guichet"
+        message="Vous allez cloturer votre guichet et etre deconnecte. Confirmer ?"
+        confirmLabel="Cloturer"
+        cancelLabel="Annuler"
+        onConfirm={handleCloseCounter}
+        onCancel={() => setShowCloseConfirm(false)}
       />
 
       {/* Password change modal */}

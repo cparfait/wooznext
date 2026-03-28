@@ -9,6 +9,11 @@ const updateServiceSchema = z.object({
   isActive: z.boolean().optional(),
   feedUrl: z.string().url().nullable().optional(),
   tickerMessage: z.string().nullable().optional(),
+  tickerPosition: z.enum(['top', 'middle', 'bottom']).optional(),
+  tickerHeight: z.number().int().min(30).max(120).optional(),
+  tickerBgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  tickerTextColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  tickerFontSize: z.number().int().min(12).max(60).optional(),
 });
 
 export async function PATCH(

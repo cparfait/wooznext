@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <h1 className="text-lg font-bold text-gray-900">Administration</h1>
           <button
             onClick={() => signOut({ callbackUrl: '/agent/login' })}
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-4xl px-4">
+        <div className="mx-auto flex max-w-7xl px-4">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-4xl p-4">
+      <div className="mx-auto max-w-7xl p-4">
         {tab === 'stats' && <StatsPanel />}
         {tab === 'services' && <ServicesPanel />}
         {tab === 'agents' && <AgentsPanel />}

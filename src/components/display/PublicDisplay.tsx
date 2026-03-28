@@ -38,11 +38,20 @@ interface FeedItem {
   category: string | null;
 }
 
+interface TickerConfig {
+  position: 'top' | 'middle' | 'bottom';
+  height: number;
+  bgColor: string;
+  textColor: string;
+  fontSize: number;
+}
+
 interface PublicDisplayProps {
   serviceId: string;
   serviceName: string;
   initialData: DisplayData;
   initialTickerMessage: string | null;
+  initialTickerConfig: TickerConfig;
   initialHasFeed: boolean;
 }
 
@@ -54,6 +63,7 @@ export default function PublicDisplay({
   serviceId,
   initialData,
   initialTickerMessage,
+  initialTickerConfig,
   initialHasFeed,
 }: PublicDisplayProps) {
   const [data, setData] = useState<DisplayData>(initialData);
@@ -61,6 +71,7 @@ export default function PublicDisplay({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
   const [tickerMessage, setTickerMessage] = useState<string | null>(initialTickerMessage);
+  const [tickerConfig, setTickerConfig] = useState<TickerConfig>(initialTickerConfig);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slideDuration, setSlideDuration] = useState(15000);
   const [progressKey, setProgressKey] = useState(0);
@@ -136,6 +147,15 @@ export default function PublicDisplay({
       if (!res.ok) return;
       const json = await res.json();
       setTickerMessage(json.message ?? null);
+      if (json.position || json.height || json.bgColor || json.textColor || json.fontSize) {
+        setTickerConfig({
+          position: json.position ?? 'bottom',
+          height: json.height ?? 48,
+          bgColor: json.bgColor ?? '#dc2626',
+          textColor: json.textColor ?? '#ffffff',
+          fontSize: json.fontSize ?? 18,
+        });
+      }
     } catch {
       // ignore
     }
@@ -351,7 +371,7 @@ export default function PublicDisplay({
           {/* Bottom info */}
           <div
             className="absolute bottom-8 left-10 right-10 flex items-center justify-center gap-6"
-            style={{ marginBottom: hasTicker ? '48px' : '0' }}
+            style={{ marginBottom: hasTicker && tickerConfig.position === 'bottom' ? `${tickerConfig.height}px` : '0' }}
           >
             {data.lastCalledCode && (
               <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
@@ -521,8 +541,24 @@ export default function PublicDisplay({
 
       {/* Ticker */}
       {hasTicker && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 overflow-hidden bg-red-600 py-3">
-          <p className="animate-ticker whitespace-nowrap text-lg font-bold text-white">
+        <div
+          className="fixed left-0 right-0 z-50 flex items-center overflow-hidden"
+          style={{
+            ...(tickerConfig.position === 'top' ? { top: 0 } : {}),
+            ...(tickerConfig.position === 'middle' ? { top: '50%', transform: 'translateY(-50%)' } : {}),
+            ...(tickerConfig.position === 'bottom' ? { bottom: 0 } : {}),
+            height: `${tickerConfig.height}px`,
+            backgroundColor: tickerConfig.bgColor,
+          }}
+        >
+          <p
+            className="animate-ticker whitespace-nowrap font-bold"
+            style={{
+              color: tickerConfig.textColor,
+              fontSize: `${tickerConfig.fontSize}px`,
+              lineHeight: `${tickerConfig.height}px`,
+            }}
+          >
             {tickerMessage}
           </p>
         </div>

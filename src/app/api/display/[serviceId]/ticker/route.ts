@@ -10,10 +10,24 @@ export async function GET(
   try {
     const service = await prisma.service.findUnique({
       where: { id: params.serviceId },
-      select: { tickerMessage: true },
+      select: {
+        tickerMessage: true,
+        tickerPosition: true,
+        tickerHeight: true,
+        tickerBgColor: true,
+        tickerTextColor: true,
+        tickerFontSize: true,
+      },
     });
 
-    return NextResponse.json({ message: service?.tickerMessage ?? null });
+    return NextResponse.json({
+      message: service?.tickerMessage ?? null,
+      position: service?.tickerPosition ?? 'bottom',
+      height: service?.tickerHeight ?? 48,
+      bgColor: service?.tickerBgColor ?? '#dc2626',
+      textColor: service?.tickerTextColor ?? '#ffffff',
+      fontSize: service?.tickerFontSize ?? 18,
+    });
   } catch {
     return NextResponse.json({ message: null });
   }

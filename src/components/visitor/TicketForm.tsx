@@ -3,6 +3,36 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+interface DayHours {
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  isClosed: boolean;
+}
+
+const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+function isServiceOpen(hours: DayHours[]): { open: boolean; hours: DayHours[] } {
+  if (!hours || hours.length === 0) return { open: true, hours: [] };
+
+  const now = new Date();
+  // JS: 0=Sunday, convert to our format 0=Monday
+  const jsDay = now.getDay();
+  const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
+
+  const todayHours = hours.find((h) => h.dayOfWeek === dayOfWeek);
+  if (!todayHours || todayHours.isClosed) return { open: false, hours };
+
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const currentTime = `${hh}:${mm}`;
+  if (currentTime < todayHours.openTime || currentTime >= todayHours.closeTime) {
+    return { open: false, hours };
+  }
+
+  return { open: true, hours };
+}
+
 export default function TicketForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -10,9 +40,10 @@ export default function TicketForm() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [serviceName, setServiceName] = useState('');
   const [ready, setReady] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [closed, setClosed] = useState(false);
+  const [openingHours, setOpeningHours] = useState<DayHours[]>([]);
 
   useEffect(() => {
     fetch('/api/logo').then((res) => {
@@ -26,18 +57,36 @@ export default function TicketForm() {
       return;
     }
 
-    fetch('/api/services')
-      .then((res) => res.json())
-      .then((data) => {
+    async function loadService() {
+      try {
+        const res = await fetch('/api/services');
+        const data = await res.json();
         const service = data.services?.find((s: { id: string }) => s.id === serviceId);
-        if (service) {
-          setServiceName(service.name);
-          setReady(true);
-        } else {
+        if (!service) {
           setError('Service introuvable.');
+          return;
         }
-      })
-      .catch(() => setError('Impossible de charger les services'));
+
+        // Check opening hours
+        const hoursRes = await fetch(`/api/services/${serviceId}/hours`);
+        if (hoursRes.ok) {
+          const hoursData = await hoursRes.json();
+          if (hoursData.hours && hoursData.hours.length > 0) {
+            const result = isServiceOpen(hoursData.hours);
+            if (!result.open) {
+              setClosed(true);
+              setOpeningHours(result.hours);
+              return;
+            }
+          }
+        }
+
+        setReady(true);
+      } catch {
+        setError('Impossible de charger les services');
+      }
+    }
+    loadService();
   }, [serviceId]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,22 +117,48 @@ export default function TicketForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
-      <div className="space-y-6">
-        {logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
-        )}
+    <div className="space-y-6">
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
+      )}
 
-        {serviceName && (
-          <div className="rounded-lg bg-primary-50 p-3 text-center text-sm font-medium text-primary-700">
-            {serviceName}
+      <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-sm">
+        <div className="space-y-6">
+          <h1 className="text-3xl font-bold text-gray-900">Bienvenue</h1>
+
+          {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-600">
+            {error}
           </div>
         )}
 
-        {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-600">
-            {error}
+        {closed && (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-orange-50 p-4 text-center">
+              <p className="text-base font-semibold text-orange-800">
+                Le service est actuellement ferme
+              </p>
+              <p className="mt-1 text-sm text-orange-600">
+                Veuillez revenir pendant les horaires d&apos;ouverture.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-700">
+                Horaires d&apos;ouverture
+              </h3>
+              <div className="space-y-1.5">
+                {openingHours.map((day) => (
+                  <div key={day.dayOfWeek} className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-700">{DAY_NAMES[day.dayOfWeek]}</span>
+                    <span className={day.isClosed ? 'text-red-500' : 'text-gray-600'}>
+                      {day.isClosed ? 'Ferme' : `${day.openTime} - ${day.closeTime}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -91,7 +166,7 @@ export default function TicketForm() {
           <>
             <div>
               <label htmlFor="phone" className="block text-left text-sm font-medium text-gray-700">
-                Votre numero de telephone
+                Saisissez votre numero pour obtenir un ticket
               </label>
               <input
                 id="phone"
@@ -104,6 +179,9 @@ export default function TicketForm() {
                 className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-lg tracking-wider text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 placeholder="06 12 34 56 78"
               />
+              <p className="mt-2 text-xs italic text-gray-400">
+                Votre numero de telephone n&apos;est pas conserve apres votre visite.
+              </p>
             </div>
 
             <button
@@ -115,7 +193,8 @@ export default function TicketForm() {
             </button>
           </>
         )}
-      </div>
-    </form>
+        </div>
+      </form>
+    </div>
   );
 }
