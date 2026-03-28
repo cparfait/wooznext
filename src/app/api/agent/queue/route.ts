@@ -19,7 +19,7 @@ export async function GET() {
     }
 
     const [stats, counter] = await Promise.all([
-      getQueueStats(serviceId),
+      getQueueStats(serviceId, agentId),
       prisma.counter.findFirst({
         where: { agentId },
         select: { label: true },

@@ -227,15 +227,19 @@ export async function markNoShow(ticketId: string) {
 }
 
 /**
- * Get queue stats for a service.
+ * Get queue stats for a service, scoped to a specific agent.
  */
-export async function getQueueStats(serviceId: string) {
+export async function getQueueStats(serviceId: string, agentId?: string) {
   const [waitingCount, currentTicket, waitingTickets] = await Promise.all([
     prisma.ticket.count({
       where: { serviceId, status: TicketStatus.WAITING },
     }),
     prisma.ticket.findFirst({
-      where: { serviceId, status: TicketStatus.SERVING },
+      where: {
+        serviceId,
+        status: TicketStatus.SERVING,
+        ...(agentId ? { calledById: agentId } : {}),
+      },
       orderBy: { calledAt: 'desc' },
       include: { visitor: true },
     }),

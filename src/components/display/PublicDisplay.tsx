@@ -67,6 +67,8 @@ export default function PublicDisplay({
 }: PublicDisplayProps) {
   const [data, setData] = useState<DisplayData>(initialData);
   const [calling, setCalling] = useState(false);
+  const [callingCode, setCallingCode] = useState<string | null>(null);
+  const [callingCounter, setCallingCounter] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
   const [tickerMessage, setTickerMessage] = useState<string | null>(initialTickerMessage);
@@ -187,9 +189,11 @@ export default function PublicDisplay({
 
   useServiceSocket(
     serviceId,
-    useCallback((event: string) => {
+    useCallback((event: string, eventData: any) => {
       if (event === 'ticket:called') {
-        // Always trigger animation on ticket:called (including recalls)
+        // Capture the called ticket info for the animation
+        setCallingCode(eventData?.displayCode ?? null);
+        setCallingCounter(eventData?.counterLabel ?? null);
         setCalling(true);
         playNotificationSound();
         setTimeout(() => setCalling(false), 30000);
@@ -314,56 +318,66 @@ export default function PublicDisplay({
               backgroundColor: calling ? '#f0fdf4' : '#ffffff',
             }}
           >
-            {data.currentCode ? (
-              <>
-                <h2
-                  className={`m-0 text-2xl font-semibold uppercase ${
-                    calling ? 'font-black text-primary-700' : 'text-gray-400'
-                  }`}
-                  style={{ fontSize: '2em' }}
-                >
-                  {calling ? 'A votre tour !' : 'Dernier appel'}
-                </h2>
-                <div
-                  className={`my-5 font-black leading-none tracking-wider ${
-                    calling ? 'text-primary-700' : 'text-gray-900'
-                  }`}
-                  style={{
-                    fontSize: '10em',
-                    textShadow: calling ? '0 4px 15px rgba(0, 110, 70, 0.3)' : 'none',
-                  }}
-                >
-                  {data.currentCode}
-                </div>
-                {data.currentCounter && (
-                  <p
-                    className={`m-0 font-bold ${
-                      calling ? 'text-gray-900' : 'text-primary-700'
-                    }`}
-                    style={{ fontSize: '3em' }}
+            {(() => {
+              // During animation, use the socket event data; otherwise use API data
+              const displayCode = calling ? (callingCode ?? data.currentCode) : data.currentCode;
+              const displayCounter = calling ? callingCounter : data.currentCounter;
+
+              if (displayCode) {
+                return (
+                  <>
+                    <h2
+                      className={`m-0 text-2xl font-semibold uppercase ${
+                        calling ? 'font-black text-primary-700' : 'text-gray-400'
+                      }`}
+                      style={{ fontSize: '2em' }}
+                    >
+                      {calling ? 'A votre tour !' : 'Dernier appel'}
+                    </h2>
+                    <div
+                      className={`my-5 font-black leading-none tracking-wider ${
+                        calling ? 'text-primary-700' : 'text-gray-900'
+                      }`}
+                      style={{
+                        fontSize: '10em',
+                        textShadow: calling ? '0 4px 15px rgba(0, 110, 70, 0.3)' : 'none',
+                      }}
+                    >
+                      {displayCode}
+                    </div>
+                    {displayCounter && (
+                      <p
+                        className={`m-0 font-bold ${
+                          calling ? 'text-gray-900' : 'text-primary-700'
+                        }`}
+                        style={{ fontSize: '3em' }}
+                      >
+                        {calling
+                          ? `Allez au ${displayCounter}`
+                          : displayCounter}
+                      </p>
+                    )}
+                  </>
+                );
+              }
+
+              return (
+                <>
+                  <h2
+                    className="m-0 font-semibold uppercase text-gray-400"
+                    style={{ fontSize: '2em' }}
                   >
-                    {calling
-                      ? `Allez au ${data.currentCounter}`
-                      : data.currentCounter}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                <h2
-                  className="m-0 font-semibold uppercase text-gray-400"
-                  style={{ fontSize: '2em' }}
-                >
-                  Dernier appel
-                </h2>
-                <div
-                  className="my-5 font-black leading-none text-gray-200"
-                  style={{ fontSize: '10em' }}
-                >
-                  ---
-                </div>
-              </>
-            )}
+                    Dernier appel
+                  </h2>
+                  <div
+                    className="my-5 font-black leading-none text-gray-200"
+                    style={{ fontSize: '10em' }}
+                  >
+                    ---
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Bottom info */}
