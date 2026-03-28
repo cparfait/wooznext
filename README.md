@@ -7,9 +7,11 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 ## Fonctionnalites
 
 - **Vue Visiteur** (mobile-first) : prise de ticket par QR code, suivi en temps reel, son de notification, confetti quand c'est son tour
-- **Vue Agent** : appel du suivant, appel manuel, retour en file, marquage absent, ajout de ticket, changement de mot de passe
-- **Vue Admin** : gestion des services (CRUD, prefixe, horaires), agents, guichets, statistiques filtrees, upload du logo, QR codes par service
-- **Affichage Public** (Chromecast) : ticket en cours en grand format, bandeau lateral avec liste des tickets appeles et guichets, flash + son a chaque appel
+- **Vue Agent** : appel du suivant, appel manuel, rappel du visiteur, retour en file, marquage absent, ajout de ticket, cloture du guichet, changement de mot de passe
+- **Vue Admin** : gestion des services (CRUD, prefixe, horaires, guichets integres, reinitialisation de la file par service), agents (nom/prenom, service, role), statistiques filtrees, upload du logo, QR codes par service
+- **Affichage Public** (Chromecast) : ticket en cours en grand format, bandeau lateral avec liste des tickets appeles et guichets, flux d'actualites configurable, message defilant urgent, flash + son a chaque appel
+- **Roles** : ADMIN (gestion globale) et AGENT (operations file + administration de son propre service)
+- **Presence agent** : liberation automatique du guichet a la deconnexion (support multi-onglets)
 - **QR Code** : generation automatique par service via `/api/qrcode?serviceId=ID`
 - **Temps reel** : Socket.IO pour toutes les mises a jour
 - **RGPD** : purge automatique des donnees visiteurs apres 30 jours
