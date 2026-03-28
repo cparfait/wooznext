@@ -26,6 +26,7 @@ export default function TicketTracker({
   const [showCelebration, setShowCelebration] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [counterLabel, setCounterLabel] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isCurrent = ticket.status === 'SERVING';
@@ -59,8 +60,9 @@ export default function TicketTracker({
     }
   }, [ticketId]);
 
-  useTicketSocket(ticketId, useCallback((event: string) => {
+  useTicketSocket(ticketId, useCallback((event: string, data: any) => {
     if (event === 'ticket:called') {
+      if (data?.counterLabel) setCounterLabel(data.counterLabel);
       playSound();
       setShowCelebration(true);
       refreshTicket();
@@ -68,6 +70,7 @@ export default function TicketTracker({
       refreshTicket();
     } else if (event === 'ticket:returned') {
       setShowCelebration(false);
+      setCounterLabel(null);
       refreshTicket();
     }
   }, [refreshTicket, playSound]));
@@ -132,7 +135,9 @@ export default function TicketTracker({
             #{ticket.displayCode}
           </p>
           <p className="mt-5 text-base text-primary-200 sm:text-lg">
-            Veuillez vous presenter au guichet
+            {counterLabel
+              ? `Veuillez vous presenter au ${counterLabel}`
+              : 'Veuillez vous presenter au guichet'}
           </p>
         </div>
 

@@ -54,9 +54,20 @@ app.prepare().then(() => {
     });
 
     // Agent registers their ID so we can release their counter on disconnect
-    socket.on('agent:register', (agentId: string) => {
+    // Also disconnects any previous sessions for this agent (single session enforcement)
+    socket.on('agent:register', async (agentId: string) => {
       (socket as any).agentId = agentId;
       console.log(`[Socket.IO] Agent ${agentId} registered on ${socket.id}`);
+
+      // Disconnect other sockets for this agent (single session)
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if (s.id !== socket.id && (s as any).agentId === agentId) {
+          console.log(`[Socket.IO] Disconnecting previous session ${s.id} for agent ${agentId}`);
+          s.emit('agent:force-disconnect');
+          s.disconnect(true);
+        }
+      }
     });
 
     socket.on('disconnect', async () => {

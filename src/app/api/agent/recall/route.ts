@@ -25,8 +25,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ticket non valide' }, { status: 400 });
     }
 
+    const counter = await prisma.counter.findFirst({
+      where: { agentId: session.user.id },
+      select: { label: true },
+    });
+
     // Re-emit the called event to trigger display flash + visitor notification
-    emitTicketCalled(ticket.serviceId, ticket.id, ticket.displayCode);
+    emitTicketCalled(ticket.serviceId, ticket.id, ticket.displayCode, counter?.label);
     emitQueueUpdate(ticket.serviceId);
 
     return NextResponse.json({ success: true });

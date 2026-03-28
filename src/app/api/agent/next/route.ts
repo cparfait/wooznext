@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAgentSession } from '@/lib/api-auth';
 import { callNextTicket } from '@/lib/services/ticket.service';
 import { emitTicketCalled, emitQueueUpdate } from '@/lib/socket-emitter';
+import { prisma } from '@/lib/prisma';
 
 export async function POST() {
   try {
@@ -27,7 +28,13 @@ export async function POST() {
       );
     }
 
-    emitTicketCalled(serviceId, ticket.id, ticket.displayCode);
+    // Get counter label for this agent
+    const counter = await prisma.counter.findFirst({
+      where: { agentId: session.user.id },
+      select: { label: true },
+    });
+
+    emitTicketCalled(serviceId, ticket.id, ticket.displayCode, counter?.label);
     emitQueueUpdate(serviceId);
 
     return NextResponse.json({ ticket });

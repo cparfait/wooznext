@@ -21,7 +21,7 @@ export function emitQueueUpdate(serviceId: string) {
 /**
  * Emit when a ticket is called by an agent.
  */
-export function emitTicketCalled(serviceId: string, ticketId: string, displayCode: string) {
+export function emitTicketCalled(serviceId: string, ticketId: string, displayCode: string, counterLabel?: string | null) {
   const io = getIO();
   if (!io) return;
 
@@ -30,12 +30,14 @@ export function emitTicketCalled(serviceId: string, ticketId: string, displayCod
     serviceId,
     ticketId,
     displayCode,
+    counterLabel: counterLabel ?? null,
   });
 
   // Notify the specific ticket room (visitor mobile)
   io.to(`ticket:${ticketId}`).emit('ticket:called', {
     ticketId,
     displayCode,
+    counterLabel: counterLabel ?? null,
   });
 }
 

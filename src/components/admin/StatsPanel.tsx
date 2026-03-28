@@ -146,28 +146,30 @@ export default function StatsPanel({ serviceScope }: { serviceScope?: string | n
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <select
-          value={selectedServiceId}
-          onChange={(e) => setSelectedServiceId(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
-        >
-          <option value="">Tous les services</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        <select
-          value={selectedAgentId}
-          onChange={(e) => setSelectedAgentId(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
-        >
-          <option value="">Tous les agents</option>
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
-      </div>
+      {!serviceScope && (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <select
+            value={selectedServiceId}
+            onChange={(e) => setSelectedServiceId(e.target.value)}
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
+          >
+            <option value="">Tous les services</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <select
+            value={selectedAgentId}
+            onChange={(e) => setSelectedAgentId(e.target.value)}
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-primary-500 focus:outline-none"
+          >
+            <option value="">Tous les agents</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

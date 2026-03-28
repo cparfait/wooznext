@@ -1,9 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 let globalSocket: Socket | null = null;
+let forceDisconnectCallback: (() => void) | null = null;
+
+/**
+ * Register a callback to be called when the server forces disconnect.
+ */
+export function onForceDisconnect(callback: () => void) {
+  forceDisconnectCallback = callback;
+}
 
 function getSocket(): Socket {
   if (!globalSocket) {
@@ -14,6 +22,9 @@ function getSocket(): Socket {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+    });
+    globalSocket.on('agent:force-disconnect', () => {
+      if (forceDisconnectCallback) forceDisconnectCallback();
     });
   }
   return globalSocket;

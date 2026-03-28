@@ -79,8 +79,6 @@ export default function PublicDisplay({
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
   const slideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const prevCodeRef = useRef<string | null>(initialData.currentCode);
-
   // Clock
   const [clockTime, setClockTime] = useState('');
   const [clockDate, setClockDate] = useState('');
@@ -181,25 +179,23 @@ export default function PublicDisplay({
       const res = await fetch(`/api/display/${serviceId}`);
       if (!res.ok) return;
       const newData = await res.json();
-
-      if (newData.currentCode && newData.currentCode !== prevCodeRef.current) {
-        setCalling(true);
-        playNotificationSound();
-        setTimeout(() => setCalling(false), 30000);
-      }
-
-      prevCodeRef.current = newData.currentCode;
       setData(newData);
     } catch {
       // Silent fail
     }
-  }, [serviceId, playNotificationSound]);
+  }, [serviceId]);
 
   useServiceSocket(
     serviceId,
-    useCallback(() => {
+    useCallback((event: string) => {
+      if (event === 'ticket:called') {
+        // Always trigger animation on ticket:called (including recalls)
+        setCalling(true);
+        playNotificationSound();
+        setTimeout(() => setCalling(false), 30000);
+      }
       refreshData();
-    }, [refreshData])
+    }, [refreshData, playNotificationSound])
   );
 
   useEffect(() => {

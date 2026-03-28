@@ -4,7 +4,7 @@ import { Session } from 'next-auth';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { useServiceSocket } from '@/hooks/useSocket';
+import { useServiceSocket, onForceDisconnect } from '@/hooks/useSocket';
 import BottomSheet from './BottomSheet';
 import ConfirmModal from './ConfirmModal';
 import AddTicketModal from './AddTicketModal';
@@ -46,6 +46,9 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
   const [showAddTicket, setShowAddTicket] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showCounterSelect, setShowCounterSelect] = useState(false);
+  const [availableCounters, setAvailableCounters] = useState<{ id: string; label: string; agentId: string | null }[]>([]);
+  const [selectingCounter, setSelectingCounter] = useState<string | null>(null);
 
   async function handleCloseCounter() {
     try {
@@ -67,10 +70,35 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
     }
   }, []);
 
-  // Initial load
+  // Initial load + check counter assignment
   useEffect(() => {
-    refreshQueue();
+    async function init() {
+      await refreshQueue();
+      // Check if agent has a counter; if not, load available counters
+      const qRes = await fetch('/api/agent/queue');
+      if (qRes.ok) {
+        const data = await qRes.json();
+        if (!data.counterLabel) {
+          const cRes = await fetch('/api/agent/counters');
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            if (cData.counters && cData.counters.length > 0) {
+              setAvailableCounters(cData.counters);
+              setShowCounterSelect(true);
+            }
+          }
+        }
+      }
+    }
+    init();
   }, [refreshQueue]);
+
+  // Force disconnect handler (admin released counter)
+  useEffect(() => {
+    onForceDisconnect(() => {
+      signOut({ callbackUrl: '/agent/login' });
+    });
+  }, []);
 
   // Real-time updates (also registers agent for presence tracking)
   useServiceSocket(user.serviceId, useCallback(() => {
@@ -176,25 +204,45 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
     setLoading(false);
   }
 
+  async function handleSelectCounter(counterId: string) {
+    setSelectingCounter(counterId);
+    try {
+      const res = await fetch('/api/agent/counter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counterId }),
+      });
+      if (res.ok) {
+        setShowCounterSelect(false);
+        await refreshQueue();
+      }
+    } catch {
+      // silent
+    }
+    setSelectingCounter(null);
+  }
+
   const currentCode = stats.currentTicket?.displayCode ?? '---';
 
   return (
     <main className="flex min-h-screen flex-col bg-gray-400">
       {/* Header */}
       <div className="p-4">
-        <div className="mx-auto flex max-w-md items-center justify-between">
+        <div className="mx-auto flex max-w-md items-start justify-between">
           <div>
             <p className="text-sm font-medium text-gray-800">
               {user.name}
+            </p>
+            <p className="text-xs text-gray-600">
+              {user.serviceName}
               {stats.counterLabel && (
-                <span className="ml-2 rounded bg-white/50 px-1.5 py-0.5 text-xs font-normal text-gray-600">
+                <span className="ml-1 rounded bg-white/50 px-1.5 py-0.5 text-xs font-normal text-gray-600">
                   {stats.counterLabel}
                 </span>
               )}
             </p>
-            <p className="text-xs text-gray-600">{user.serviceName}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-1">
             <button
               onClick={() => router.push('/admin')}
               className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
@@ -203,13 +251,13 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
             </button>
             <button
               onClick={() => setShowPasswordChange(true)}
-              className="rounded-lg px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300"
+              className="rounded-lg px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-300"
             >
               Mot de passe
             </button>
             <button
               onClick={() => signOut({ callbackUrl: '/agent/login' })}
-              className="rounded-lg px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-300"
+              className="rounded-lg px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-300"
             >
               Deconnexion
             </button>
@@ -365,6 +413,43 @@ export default function AgentDashboard({ session }: AgentDashboardProps) {
         visible={showPasswordChange}
         onClose={() => setShowPasswordChange(false)}
       />
+
+      {/* Counter selection overlay (shown when agent has no counter) */}
+      {showCounterSelect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-center text-lg font-semibold text-gray-900">
+              Choisissez votre guichet
+            </h2>
+            <div className="space-y-2">
+              {availableCounters.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectCounter(c.id)}
+                  disabled={selectingCounter !== null}
+                  className={`w-full rounded-xl border-2 px-4 py-3 text-left font-medium transition-colors disabled:opacity-50 ${
+                    c.agentId
+                      ? 'border-gray-200 bg-gray-50 text-gray-400'
+                      : 'border-gray-200 bg-white text-gray-900 hover:border-primary-300 hover:bg-primary-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>{c.label}</span>
+                    {selectingCounter === c.id && <span className="text-sm text-gray-400">Selection...</span>}
+                    {c.agentId && selectingCounter !== c.id && <span className="text-xs text-gray-400">Occupe</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowCounterSelect(false)}
+              className="mt-4 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Passer
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

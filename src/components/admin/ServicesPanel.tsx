@@ -249,6 +249,7 @@ function CountersEditor({ serviceId }: { serviceId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [releasingId, setReleasingId] = useState<string | null>(null);
 
   const fetchCounters = useCallback(async () => {
     const res = await fetch(`/api/admin/counters?serviceId=${serviceId}`);
@@ -290,6 +291,17 @@ function CountersEditor({ serviceId }: { serviceId: string }) {
       setEditingLabel('');
       await fetchCounters();
     }
+  }
+
+  async function handleRelease(id: string) {
+    setReleasingId(id);
+    try {
+      await fetch(`/api/admin/counters/${id}/release`, { method: 'POST' });
+      await fetchCounters();
+    } catch {
+      // silent
+    }
+    setReleasingId(null);
   }
 
   async function handleDelete(id: string) {
@@ -365,6 +377,15 @@ function CountersEditor({ serviceId }: { serviceId: string }) {
             </div>
             {editingId !== c.id && (
               <div className="ml-2 flex items-center gap-1">
+                {c.agent && (
+                  <button
+                    onClick={() => handleRelease(c.id)}
+                    disabled={releasingId === c.id}
+                    className="rounded bg-orange-100 px-2 py-1 text-xs font-medium text-orange-600 hover:bg-orange-200 disabled:opacity-50"
+                  >
+                    {releasingId === c.id ? '...' : 'Liberer'}
+                  </button>
+                )}
                 {deleteConfirmId === c.id ? (
                   <>
                     <button onClick={() => handleDelete(c.id)} className="rounded bg-red-500 px-2 py-1 text-xs font-medium text-white hover:bg-red-600">Confirmer</button>
