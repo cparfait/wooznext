@@ -4,6 +4,11 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 
+/** Capitalize first letter of each part (separated by - or space) */
+function formatFirstName(s: string): string {
+  return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 const createAgentSchema = z.object({
   firstName: z.string().min(1, 'Prenom requis'),
   lastName: z.string().min(1, 'Nom requis'),
@@ -51,11 +56,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
-    const { password, ...data } = parsed.data;
+    const { password, firstName, lastName, ...data } = parsed.data;
     const passwordHash = await bcrypt.hash(password, 12);
 
     const agent = await prisma.agent.create({
-      data: { ...data, passwordHash },
+      data: {
+        ...data,
+        firstName: formatFirstName(firstName.trim()),
+        lastName: lastName.trim().toUpperCase(),
+        passwordHash,
+      },
       select: { id: true, firstName: true, lastName: true, email: true, role: true },
     });
 

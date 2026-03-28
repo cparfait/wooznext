@@ -4,6 +4,10 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 
+function formatFirstName(s: string): string {
+  return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 const updateAgentSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -28,8 +32,10 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
-    const { password, ...data } = parsed.data;
+    const { password, firstName, lastName, ...data } = parsed.data;
     const updateData: any = { ...data };
+    if (firstName) updateData.firstName = formatFirstName(firstName.trim());
+    if (lastName) updateData.lastName = lastName.trim().toUpperCase();
 
     if (password) {
       updateData.passwordHash = await bcrypt.hash(password, 12);
