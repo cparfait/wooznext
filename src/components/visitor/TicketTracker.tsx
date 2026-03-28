@@ -8,7 +8,6 @@ interface TicketData {
   id: string;
   displayCode: string;
   status: string;
-  service: { name: string };
 }
 
 interface TicketTrackerProps {

@@ -22,7 +22,6 @@ export default async function TicketPage({ params }: TicketPageProps) {
         id: ticket.id,
         displayCode: ticket.displayCode,
         status: ticket.status,
-        service: { name: ticket.service.name },
       }}
       initialPosition={position}
     />

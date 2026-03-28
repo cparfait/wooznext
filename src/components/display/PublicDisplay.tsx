@@ -48,7 +48,6 @@ interface TickerConfig {
 
 interface PublicDisplayProps {
   serviceId: string;
-  serviceName: string;
   initialData: DisplayData;
   initialTickerMessage: string | null;
   initialTickerConfig: TickerConfig;
