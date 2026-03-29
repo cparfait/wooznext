@@ -31,6 +31,9 @@ const securityHeaders = [
 
 const nextConfig = {
   output: 'standalone',
+  // Fix "multiple lockfiles" warning when project is nested inside a parent
+  // directory that also has a package-lock.json (e.g. Laragon www folder)
+  outputFileTracingRoot: require('path').join(__dirname),
   allowedDevOrigins: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   async headers() {
     return [
