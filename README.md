@@ -8,8 +8,8 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 
 - **Vue Visiteur** (mobile-first) : prise de ticket par QR code, suivi en temps reel, son de notification, confetti quand c'est son tour
 - **Vue Agent** : appel du suivant, appel manuel, rappel du visiteur, retour en file, marquage absent, ajout de ticket, cloture du guichet, changement de mot de passe
-- **Vue Admin** : gestion des services (CRUD, prefixe, horaires, guichets integres, reinitialisation de la file par service), agents (nom/prenom, service, role), statistiques filtrees, upload du logo, QR codes par service
-- **Affichage Public** (Chromecast) : ticket en cours en grand format, bandeau lateral avec liste des tickets appeles et guichets, flux d'actualites configurable, message defilant urgent, flash + son a chaque appel
+- **Vue Admin** : gestion des services (CRUD, prefixe, horaires, guichets, reinitialisation par service), agents (nom/prenom, service, role), statistiques filtrees, upload du logo, QR codes par service
+- **Affichage Public** (Chromecast) : ticket en cours en grand format, dernier ticket appele persistant avec guichet, bandeau lateral avec liste des tickets appeles, flux d'actualites configurable avec images, message defilant urgent, flash + son a chaque appel
 - **Roles** : ADMIN (gestion globale) et AGENT (operations file + administration de son propre service)
 - **Presence agent** : liberation automatique du guichet a la deconnexion (support multi-onglets)
 - **QR Code** : generation automatique par service via `/api/qrcode?serviceId=ID`
@@ -17,18 +17,30 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 - **RGPD** : purge automatique des donnees visiteurs apres 30 jours
 - **Nettoyage minuit** : fermeture automatique des tickets ouverts en fin de journee
 
+## Securite
+
+- Mots de passe haches avec bcrypt (cout 12), minimum 12 caracteres avec majuscule, chiffre et caractere special
+- Sessions JWT via NextAuth.js (cookie HttpOnly + SameSite=Strict)
+- En-tetes HTTP de securite : CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- Rate limiting sur la prise de ticket (anti-spam, 10 requetes/min par IP)
+- Protection SSRF sur le flux d'actualites (HTTPS uniquement, blocage des IPs privees)
+- Images du flux proxifiees cote serveur (CSP strict, contenu valide uniquement)
+- Journalisation d'audit structuree (JSON) pour les actions sensibles
+- PostgreSQL non expose sur le reseau public en production
+- Purge RGPD automatique apres 30 jours
+
 ## Stack technique
 
-| Couche | Technologie |
-|---|---|
-| Framework | Next.js 14 (App Router) |
-| Langage | TypeScript |
-| Style | Tailwind CSS |
-| Base de donnees | PostgreSQL 16 |
-| ORM | Prisma |
-| Temps reel | Socket.IO |
-| Authentification | NextAuth.js |
-| Conteneurs | Docker + Docker Compose |
+| Couche | Technologie | Version |
+|---|---|---|
+| Framework | Next.js (App Router) | 15.x |
+| Langage | TypeScript | 5.x |
+| Style | Tailwind CSS | 3.x |
+| Base de donnees | PostgreSQL | 16 |
+| ORM | Prisma | 5.x |
+| Temps reel | Socket.IO | 4.x |
+| Authentification | NextAuth.js | 4.x |
+| Conteneurs | Docker + Docker Compose | - |
 
 ## Prerequis
 
@@ -48,7 +60,8 @@ cd wooznext
 ### 2. Configurer les variables d'environnement
 
 ```bash
-copy .env.example .env       # Windows : copy .env.example .env
+cp .env.example .env        # Linux/Mac
+copy .env.example .env      # Windows
 ```
 
 Editez le fichier `.env` :
@@ -113,13 +126,15 @@ L'application est accessible sur **http://localhost:3000**.
 | Agent | agent1@wooz.next | agent | SUPPORT |
 | Agent | agent2@wooz.next | agent | ACCUEIL |
 
+> **Note** : les mots de passe de seed sont volontairement simples. En production, utilisez des mots de passe conformes a la politique (12 caracteres minimum, majuscule, chiffre, caractere special).
+
 ### Parcours de test recommande
 
 1. **Admin** : connectez-vous sur http://localhost:3000/admin avec `admin@wooz.next` / `admin`. Les services SUPPORT et ACCUEIL sont deja crees. Cliquez "Liens / QR" sur un service pour obtenir l'URL visiteur.
 2. **Visiteur** : ouvrez l'URL visiteur (avec `?service=ID`) sur votre telephone ou dans un onglet mobile. Saisissez un numero de telephone, prenez un ticket.
 3. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3000/agent/login avec `agent1@wooz.next` / `agent`. Cliquez "Suivant" pour appeler le visiteur.
 4. **Temps reel** : observez la mise a jour instantanee sur la vue visiteur (son + popup "C'est votre tour !").
-5. **Affichage public** : ouvrez l'URL d'affichage (`/display/SERVICE_ID`) dans un troisieme onglet pour voir le bandeau des tickets appeles.
+5. **Affichage public** : ouvrez l'URL d'affichage (`/display/SERVICE_ID`) dans un troisieme onglet pour voir le ticket en cours et le bandeau des appels.
 
 ## Deploiement en production (VPS)
 
@@ -149,7 +164,7 @@ NEXTAUTH_URL=https://votre-domaine.fr
 PHONE_PEPPER=pepper_genere_avec_openssl
 ```
 
-> **Important** : `NEXTAUTH_URL` determine la base de toutes les URLs generees par l'application (QR codes, liens visiteur, liens affichage public). Utilisez votre nom de domaine ou votre IP publique (ex: `https://votre-domaine.fr` ou `http://123.45.67.89:3000`).
+> **Important** : `NEXTAUTH_URL` determine la base de toutes les URLs generees par l'application (QR codes, liens visiteur, liens affichage public). Utilisez votre nom de domaine ou votre IP publique.
 
 ### 3. Lancer
 
@@ -217,7 +232,7 @@ npx tsx scripts/midnight-cleanup.ts  # Fermer les tickets ouverts
 ```
 wooznext/
 ├── prisma/              # Schema et migrations
-├── scripts/             # Scripts utilitaires (purge RGPD)
+├── scripts/             # Scripts utilitaires (purge RGPD, nettoyage minuit)
 ├── src/
 │   ├── app/             # Pages et API (App Router)
 │   │   ├── admin/       # Interface admin
@@ -225,11 +240,13 @@ wooznext/
 │   │   ├── display/     # Affichage public
 │   │   ├── ticket/      # Suivi visiteur
 │   │   └── api/         # Endpoints REST
+│   │       ├── feed/    # Flux d'actualites + proxy images
+│   │       └── ...
 │   ├── components/      # Composants React
 │   ├── hooks/           # Hooks Socket.IO
-│   └── lib/             # Services, auth, utilitaires
+│   └── lib/             # Services, auth, audit, rate-limit, utilitaires
 ├── server.ts            # Serveur custom (Next.js + Socket.IO)
-├── Dockerfile           # Build multi-stage production
+├── Dockerfile           # Build multi-stage production (Node.js 22)
 ├── docker-compose.yml   # Production (app + db)
 └── docker-compose.dev.yml  # Dev (db seule)
 ```
