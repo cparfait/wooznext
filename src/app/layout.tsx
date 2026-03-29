@@ -21,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={montserrat.variable}>
-      <body className="min-h-screen bg-gray-50 font-sans">
+      <body className="min-h-screen bg-gray-50 font-sans" suppressHydrationWarning>
         <SessionProvider>
           {children}
         </SessionProvider>
