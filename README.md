@@ -48,7 +48,7 @@ cd wooznext
 ### 2. Configurer les variables d'environnement
 
 ```bash
-cp .env.example .env       # Windows : copy .env.example .env
+copy .env.example .env       # Windows : copy .env.example .env
 ```
 
 Editez le fichier `.env` :
