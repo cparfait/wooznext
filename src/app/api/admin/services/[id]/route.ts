@@ -20,9 +20,10 @@ const updateServiceSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
@@ -33,7 +34,7 @@ export async function PATCH(
     }
 
     const service = await prisma.service.update({
-      where: { id: params.id },
+      where: { id },
       data: parsed.data,
     });
 
@@ -46,16 +47,17 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     // Check for active tickets (WAITING or SERVING)
     const activeTickets = await prisma.ticket.count({
       where: {
-        serviceId: params.id,
+        serviceId: id,
         status: { in: ['WAITING', 'SERVING'] },
       },
     });
@@ -69,7 +71,7 @@ export async function DELETE(
 
     // Actually delete the service (cascade handles related records)
     await prisma.service.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

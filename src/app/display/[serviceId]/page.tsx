@@ -6,12 +6,13 @@ import PublicDisplay from '@/components/display/PublicDisplay';
 export const dynamic = 'force-dynamic';
 
 interface DisplayServicePageProps {
-  params: { serviceId: string };
+  params: Promise<{ serviceId: string }>;
 }
 
 export default async function DisplayServicePage({ params }: DisplayServicePageProps) {
+  const { serviceId } = await params;
   const service = await prisma.service.findUnique({
-    where: { id: params.serviceId },
+    where: { id: serviceId },
   });
 
   if (!service || !service.isActive) {

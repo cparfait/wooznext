@@ -5,15 +5,16 @@ import { emitTicketReturned } from '@/lib/socket-emitter';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAgentSession();
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const ticket = await returnTicketToQueue(params.id);
+    const ticket = await returnTicketToQueue(id);
 
     emitTicketReturned(ticket.serviceId, ticket.id);
 

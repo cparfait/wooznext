@@ -3,11 +3,12 @@ import { getTicketById, getTicketPosition } from '@/lib/services/ticket.service'
 import TicketTracker from '@/components/visitor/TicketTracker';
 
 interface TicketPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function TicketPage({ params }: TicketPageProps) {
-  const ticket = await getTicketById(params.id);
+  const { id } = await params;
+  const ticket = await getTicketById(id);
 
   if (!ticket) {
     notFound();

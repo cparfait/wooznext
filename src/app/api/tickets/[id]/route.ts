@@ -3,10 +3,11 @@ import { getTicketById, getTicketPosition } from '@/lib/services/ticket.service'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ticket = await getTicketById(params.id);
+    const { id } = await params;
+    const ticket = await getTicketById(id);
 
     if (!ticket) {
       return NextResponse.json(

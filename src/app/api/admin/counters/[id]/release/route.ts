@@ -4,16 +4,17 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
     const counter = await prisma.counter.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, agentId: true, serviceId: true },
     });
 
@@ -44,7 +45,7 @@ export async function POST(
 
     // Release the counter
     await prisma.counter.update({
-      where: { id: params.id },
+      where: { id },
       data: { agentId: null },
     });
 

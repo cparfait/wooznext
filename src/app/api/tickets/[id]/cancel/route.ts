@@ -4,11 +4,12 @@ import { emitQueueUpdate } from '@/lib/socket-emitter';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const ticket = await prisma.ticket.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, status: true, serviceId: true },
     });
 
@@ -24,7 +25,7 @@ export async function POST(
     }
 
     await prisma.ticket.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: 'CANCELLED' },
     });
 
