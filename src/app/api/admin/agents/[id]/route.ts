@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit';
 
 function formatFirstName(s: string): string {
   return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -55,6 +56,12 @@ export async function PATCH(
       select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true },
     });
 
+    if (password) {
+      auditLog('PASSWORD_CHANGED_ADMIN', { actorId: session.user.id, targetId: id });
+    } else {
+      auditLog('AGENT_UPDATED', { actorId: session.user.id, targetId: id });
+    }
+
     return NextResponse.json({ agent });
   } catch (error) {
     console.error('Error updating agent:', error);
@@ -89,6 +96,7 @@ export async function DELETE(
     });
 
     await prisma.agent.delete({ where: { id } });
+    auditLog('AGENT_DELETED', { actorId: session.user.id, targetId: id });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting agent:', error);

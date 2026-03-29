@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { TicketStatus } from '@prisma/client';
+import { auditLog } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
+    auditLog('QUEUE_RESET', { actorId: session.user.id, role: session.user.role, serviceId: serviceId ?? null });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error resetting queue:', error);

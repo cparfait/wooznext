@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { TicketStatus } from '@prisma/client';
+import { auditLog } from '@/lib/audit';
 
 export async function POST() {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+
+    // Midnight cleanup affects all services — ADMIN only
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 });
+    }
 
     const now = new Date();
 
@@ -35,6 +41,13 @@ export async function POST() {
     });
 
     const total = cancelledResult.count + noShowResult.count;
+
+    auditLog('MIDNIGHT_CLEANUP', {
+      actorId: session.user.id,
+      cancelled: cancelledResult.count,
+      noShow: noShowResult.count,
+      countersCleared: clearedCounters.count,
+    });
 
     return NextResponse.json({
       success: true,

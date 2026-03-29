@@ -9,8 +9,13 @@ export async function GET(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const serviceId = searchParams.get('serviceId') || undefined;
     const agentId = searchParams.get('agentId') || undefined;
+
+    // AGENT role is scoped to their own service only
+    const serviceId =
+      session.user.role === 'AGENT'
+        ? (session.user.serviceId ?? undefined)
+        : (searchParams.get('serviceId') || undefined);
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
 
