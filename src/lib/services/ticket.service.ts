@@ -279,24 +279,31 @@ export async function getDisplayData(serviceId: string) {
 
   const currentTicket = servingTickets[0] ?? null;
 
-  // Dernier ticket appele = le precedent dans la liste des tickets en service,
-  // ou le dernier ticket complete/no-show
-  let lastCalledCode: string | null = null;
-  if (servingTickets.length > 1) {
-    lastCalledCode = servingTickets[1].displayCode;
-  } else {
-    const lastDone = await prisma.ticket.findFirst({
+  // Les 2 tickets precedemment appeles (indices 1 et 2 dans les tickets en service,
+  // completes par les derniers tickets termines si necessaire)
+  type PreviousTicket = { displayCode: string; counterLabel: string | null };
+  const previousTickets: PreviousTicket[] = servingTickets.slice(1, 3).map((t) => ({
+    displayCode: t.displayCode,
+    counterLabel: t.counter?.label ?? null,
+  }));
+
+  if (previousTickets.length < 2) {
+    const needed = 2 - previousTickets.length;
+    const lastDone = await prisma.ticket.findMany({
       where: { serviceId, status: { in: [TicketStatus.COMPLETED, TicketStatus.NO_SHOW] } },
       orderBy: { completedAt: 'desc' },
-      select: { displayCode: true },
+      take: needed,
+      include: { counter: { select: { label: true } } },
     });
-    lastCalledCode = lastDone?.displayCode ?? null;
+    for (const t of lastDone) {
+      previousTickets.push({ displayCode: t.displayCode, counterLabel: t.counter?.label ?? null });
+    }
   }
 
   return {
     currentCode: currentTicket?.displayCode ?? null,
     currentCounter: currentTicket?.counter?.label ?? null,
-    lastCalledCode,
+    previousTickets,
     waitingCount: waitingTickets.length,
     servingTickets: servingTickets.map((t) => ({
       displayCode: t.displayCode,
