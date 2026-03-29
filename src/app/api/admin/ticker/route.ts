@@ -8,6 +8,11 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const TICKER_FILE = path.join(DATA_DIR, 'ticker-message.txt');
 
 export async function GET() {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+  }
+
   if (!existsSync(TICKER_FILE)) {
     return NextResponse.json({ message: null });
   }

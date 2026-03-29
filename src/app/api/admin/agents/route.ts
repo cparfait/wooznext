@@ -9,11 +9,18 @@ function formatFirstName(s: string): string {
   return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
+const passwordSchema = z
+  .string()
+  .min(12, 'Mot de passe trop court (min 12 caractères)')
+  .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
+  .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
+  .regex(/[^A-Za-z0-9]/, 'Le mot de passe doit contenir au moins un caractère spécial');
+
 const createAgentSchema = z.object({
   firstName: z.string().min(1, 'Prenom requis'),
   lastName: z.string().min(1, 'Nom requis'),
   email: z.string().email('Email invalide'),
-  password: z.string().min(6, 'Mot de passe trop court (min 6)'),
+  password: passwordSchema,
   role: z.enum(['ADMIN', 'AGENT']).default('AGENT'),
   serviceId: z.string().nullable().optional(),
 });

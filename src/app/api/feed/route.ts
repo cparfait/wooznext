@@ -3,6 +3,51 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Validates that the URL is safe to fetch (SSRF protection).
+ * - HTTPS only
+ * - Blocks loopback, private IPv4 ranges, link-local, and IPv6 loopback
+ */
+function isSafeFeedUrl(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== 'https:') return false;
+
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, ''); // strip IPv6 brackets
+
+  // Loopback and localhost
+  if (host === 'localhost' || host === '::1') return false;
+
+  // IPv4 private / reserved ranges
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (
+      a === 0 ||          // 0.0.0.0/8
+      a === 10 ||         // 10.0.0.0/8
+      a === 127 ||        // 127.0.0.0/8 loopback
+      (a === 100 && b >= 64 && b <= 127) || // 100.64.0.0/10 CGNAT
+      (a === 169 && b === 254) ||           // 169.254.0.0/16 link-local
+      (a === 172 && b >= 16 && b <= 31) ||  // 172.16.0.0/12
+      (a === 192 && b === 168)              // 192.168.0.0/16
+    ) {
+      return false;
+    }
+  }
+
+  // IPv6 private (ULA fc00::/7, link-local fe80::/10)
+  if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function GET(req: NextRequest) {
   const serviceId = req.nextUrl.searchParams.get('serviceId');
   if (!serviceId) {
@@ -15,6 +60,10 @@ export async function GET(req: NextRequest) {
   });
 
   if (!service?.feedUrl || !service.feedActive) {
+    return NextResponse.json({ items: null });
+  }
+
+  if (!isSafeFeedUrl(service.feedUrl)) {
     return NextResponse.json({ items: null });
   }
 
