@@ -90,7 +90,11 @@ export async function GET(req: NextRequest) {
       .map((item: Record<string, unknown>) => ({
         title: item.title ?? item.titre ?? item.name ?? item.nom ?? '',
         date: item.date ?? item.publicationDebut ?? item.published ?? item.pubDate ?? item.created ?? null,
-        image: item.image ?? item.imageUrl ?? item.thumbnail ?? item.photo ?? item.visuel ?? null,
+        image: (() => {
+          const raw = (item.image ?? item.imageUrl ?? item.thumbnail ?? item.photo ?? item.visuel ?? null) as string | null;
+          if (!raw) return null;
+          return `/api/feed/image?url=${encodeURIComponent(raw)}`;
+        })(),
         url: item.url ?? item.link ?? item.href ?? null,
         content: item.contenu ?? item.content ?? item.description ?? item.summary ?? null,
         category: item.codeActualite ?? item.category ?? item.categorie ?? null,
