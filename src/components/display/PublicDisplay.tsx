@@ -21,10 +21,15 @@ interface ServingTicket {
   calledAt: string | null;
 }
 
+interface PreviousTicket {
+  displayCode: string;
+  counterLabel: string | null;
+}
+
 interface DisplayData {
   currentCode: string | null;
   currentCounter: string | null;
-  lastCalledCode: string | null;
+  previousTickets: PreviousTicket[];
   waitingCount: number;
   servingTickets: ServingTicket[];
 }
@@ -385,16 +390,21 @@ export default function PublicDisplay({
             className="absolute bottom-8 left-10 right-10 flex items-center justify-center gap-6"
             style={{ marginBottom: hasTicker && tickerConfig.position === 'bottom' ? `${tickerConfig.height}px` : '0' }}
           >
-            {data.lastCalledCode && (
-              <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
+            {data.previousTickets.slice(0, 2).map((ticket, index) => (
+              <div key={index} className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
                 <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-                  Dernier appel
+                  {index === 0 ? 'Precedent' : 'Avant'}
                 </span>
                 <span className="text-2xl font-black text-gray-900">
-                  {data.lastCalledCode}
+                  {ticket.displayCode}
                 </span>
+                {ticket.counterLabel && (
+                  <span className="text-sm font-semibold text-primary-700">
+                    {ticket.counterLabel}
+                  </span>
+                )}
               </div>
-            )}
+            ))}
             {data.waitingCount > 0 && (
               <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
                 <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
