@@ -81,6 +81,7 @@ export default function PublicDisplay({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slideDuration, setSlideDuration] = useState(15000);
   const [progressKey, setProgressKey] = useState(0);
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const textRefs = useRef<(HTMLDivElement | null)[]>([]);
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -326,7 +327,7 @@ export default function PublicDisplay({
             {(() => {
               // During animation, use the socket event data; otherwise use API data
               const displayCode = calling ? (callingCode ?? data.currentCode) : data.currentCode;
-              const displayCounter = calling ? callingCounter : data.currentCounter;
+              const displayCounter = calling ? (callingCounter ?? data.currentCounter) : data.currentCounter;
 
               if (displayCode) {
                 return (
@@ -390,10 +391,10 @@ export default function PublicDisplay({
             className="absolute bottom-8 left-10 right-10 flex items-center justify-center gap-6"
             style={{ marginBottom: hasTicker && tickerConfig.position === 'bottom' ? `${tickerConfig.height}px` : '0' }}
           >
-            {data.previousTickets.slice(0, 2).map((ticket, index) => (
+            {data.previousTickets.slice(0, 1).map((ticket, index) => (
               <div key={index} className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
                 <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-                  {index === 0 ? 'Precedent' : 'Avant'}
+                  Precedent
                 </span>
                 <span className="text-2xl font-black text-gray-900">
                   {ticket.displayCode}
@@ -442,17 +443,14 @@ export default function PublicDisplay({
                     }}
                   >
                     {/* Slide image */}
-                    {item.image ? (
+                    {item.image && !failedImages.has(index) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.image}
                         alt=""
                         className="w-full shrink-0 object-cover"
                         style={{ height: '30%', backgroundColor: '#f8f9fa' }}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
+                        onError={() => setFailedImages(prev => { const s = new Set(prev); s.add(index); return s; })}
                       />
                     ) : (
                       <div
