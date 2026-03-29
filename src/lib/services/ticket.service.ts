@@ -142,12 +142,18 @@ export async function callNextTicket(serviceId: string, agentId: string) {
 
   if (!nextTicket) return null;
 
+  const counter = await prisma.counter.findFirst({
+    where: { agentId },
+    select: { label: true },
+  });
+
   return prisma.ticket.update({
     where: { id: nextTicket.id },
     data: {
       status: TicketStatus.SERVING,
       calledById: agentId,
       calledAt: new Date(),
+      calledFromCounterLabel: counter?.label ?? null,
     },
     include: {
       service: true,
@@ -160,12 +166,18 @@ export async function callNextTicket(serviceId: string, agentId: string) {
  * Call a specific ticket by ID.
  */
 export async function callTicketById(ticketId: string, agentId: string) {
+  const counter = await prisma.counter.findFirst({
+    where: { agentId },
+    select: { label: true },
+  });
+
   return prisma.ticket.update({
     where: { id: ticketId },
     data: {
       status: TicketStatus.SERVING,
       calledById: agentId,
       calledAt: new Date(),
+      calledFromCounterLabel: counter?.label ?? null,
     },
     include: {
       service: true,
@@ -267,9 +279,6 @@ export async function getDisplayData(serviceId: string) {
       where: { serviceId, status: TicketStatus.SERVING },
       orderBy: { calledAt: 'desc' },
       take: 8,
-      include: {
-        counter: { select: { label: true } },
-      },
     }),
     prisma.ticket.findMany({
       where: { serviceId, status: TicketStatus.WAITING },
@@ -284,7 +293,7 @@ export async function getDisplayData(serviceId: string) {
   type PreviousTicket = { displayCode: string; counterLabel: string | null };
   const previousTickets: PreviousTicket[] = servingTickets.slice(1, 3).map((t) => ({
     displayCode: t.displayCode,
-    counterLabel: t.counter?.label ?? null,
+    counterLabel: t.calledFromCounterLabel ?? null,
   }));
 
   if (previousTickets.length < 2) {
@@ -293,21 +302,20 @@ export async function getDisplayData(serviceId: string) {
       where: { serviceId, status: { in: [TicketStatus.COMPLETED, TicketStatus.NO_SHOW] } },
       orderBy: { completedAt: 'desc' },
       take: needed,
-      include: { counter: { select: { label: true } } },
     });
     for (const t of lastDone) {
-      previousTickets.push({ displayCode: t.displayCode, counterLabel: t.counter?.label ?? null });
+      previousTickets.push({ displayCode: t.displayCode, counterLabel: t.calledFromCounterLabel ?? null });
     }
   }
 
   return {
     currentCode: currentTicket?.displayCode ?? null,
-    currentCounter: currentTicket?.counter?.label ?? null,
+    currentCounter: currentTicket?.calledFromCounterLabel ?? null,
     previousTickets,
     waitingCount: waitingTickets.length,
     servingTickets: servingTickets.map((t) => ({
       displayCode: t.displayCode,
-      counterLabel: t.counter?.label ?? null,
+      counterLabel: t.calledFromCounterLabel ?? null,
       calledAt: t.calledAt?.toISOString() ?? null,
     })),
   };
