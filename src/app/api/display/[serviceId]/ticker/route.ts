@@ -5,11 +5,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { serviceId: string } }
+  { params }: { params: Promise<{ serviceId: string }> }
 ) {
   try {
+    const { serviceId } = await params;
     const service = await prisma.service.findUnique({
-      where: { id: params.serviceId },
+      where: { id: serviceId },
       select: {
         tickerMessage: true,
         tickerActive: true,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { getAgentSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Le mot de passe actuel est requis'),
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       data: { passwordHash: newHash },
     });
 
+    auditLog('PASSWORD_CHANGED_SELF', { actorId: session.user.id, email: session.user.email ?? undefined });
     return NextResponse.json({ success: true, message: 'Mot de passe mis a jour' });
   } catch (error) {
     console.error('Password change error:', error);

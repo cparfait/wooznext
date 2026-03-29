@@ -79,7 +79,7 @@ export default function SettingsPanel() {
           Logo de l&apos;application
         </h3>
         <p className="mb-4 text-sm text-gray-500">
-          Ce logo sera affiche sur l&apos;ecran public (Chromecast). Formats acceptes : PNG, JPG, SVG, WebP (max 2 Mo).
+          Ce logo sera affiche sur l&apos;ecran public (Chromecast). Formats acceptes : PNG, JPG, WebP (max 2 Mo).
         </p>
 
         {/* Current logo preview */}
@@ -109,7 +109,7 @@ export default function SettingsPanel() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              accept="image/png,image/jpeg,image/webp"
               onChange={handleUpload}
               disabled={uploading}
               className="hidden"

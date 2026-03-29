@@ -3,10 +3,11 @@ import { getDisplayData } from '@/lib/services/ticket.service';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { serviceId: string } }
+  { params }: { params: Promise<{ serviceId: string }> }
 ) {
   try {
-    const data = await getDisplayData(params.serviceId);
+    const { serviceId } = await params;
+    const data = await getDisplayData(serviceId);
 
     return NextResponse.json(data);
   } catch (error) {

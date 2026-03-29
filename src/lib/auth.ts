@@ -2,6 +2,7 @@ import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -22,6 +23,7 @@ export const authOptions: AuthOptions = {
         });
 
         if (!agent || !agent.isActive) {
+          auditLog('LOGIN_FAILURE', { email: credentials.email, reason: agent ? 'inactive' : 'not_found' });
           return null;
         }
 
@@ -31,8 +33,11 @@ export const authOptions: AuthOptions = {
         );
 
         if (!isValid) {
+          auditLog('LOGIN_FAILURE', { email: credentials.email, reason: 'bad_password' });
           return null;
         }
+
+        auditLog('LOGIN_SUCCESS', { actorId: agent.id, email: agent.email, role: agent.role });
 
         return {
           id: agent.id,

@@ -9,9 +9,10 @@ const updateCounterSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
@@ -22,7 +23,7 @@ export async function PATCH(
     }
 
     const counter = await prisma.counter.update({
-      where: { id: params.id },
+      where: { id },
       data: { label: parsed.data.label },
       include: {
         agent: { select: { id: true, firstName: true, lastName: true } },
@@ -39,15 +40,16 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     // Check if counter has a current ticket being served
     const counter = await prisma.counter.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { currentTicketId: true },
     });
 
@@ -63,7 +65,7 @@ export async function DELETE(
     }
 
     await prisma.counter.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

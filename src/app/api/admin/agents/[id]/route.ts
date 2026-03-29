@@ -3,16 +3,24 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit';
 
 function formatFirstName(s: string): string {
   return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
+const passwordSchema = z
+  .string()
+  .min(12, 'Mot de passe trop court (min 12 caractères)')
+  .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
+  .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
+  .regex(/[^A-Za-z0-9]/, 'Le mot de passe doit contenir au moins un caractère spécial');
+
 const updateAgentSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
-  password: z.string().min(6).optional(),
+  password: passwordSchema.optional(),
   role: z.enum(['ADMIN', 'AGENT']).optional(),
   serviceId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
@@ -20,9 +28,10 @@ const updateAgentSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
@@ -42,10 +51,16 @@ export async function PATCH(
     }
 
     const agent = await prisma.agent.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true },
     });
+
+    if (password) {
+      auditLog('PASSWORD_CHANGED_ADMIN', { actorId: session.user.id, targetId: id });
+    } else {
+      auditLog('AGENT_UPDATED', { actorId: session.user.id, targetId: id });
+    }
 
     return NextResponse.json({ agent });
   } catch (error) {
@@ -56,15 +71,16 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     // Check if agent has active tickets (SERVING)
     const servingCount = await prisma.ticket.count({
-      where: { calledById: params.id, status: 'SERVING' },
+      where: { calledById: id, status: 'SERVING' },
     });
     if (servingCount > 0) {
       return NextResponse.json(
@@ -75,11 +91,12 @@ export async function DELETE(
 
     // Unassign from counters first
     await prisma.counter.updateMany({
-      where: { agentId: params.id },
+      where: { agentId: id },
       data: { agentId: null },
     });
 
-    await prisma.agent.delete({ where: { id: params.id } });
+    await prisma.agent.delete({ where: { id } });
+    auditLog('AGENT_DELETED', { actorId: session.user.id, targetId: id });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting agent:', error);

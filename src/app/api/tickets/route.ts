@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createTicket } from '@/lib/services/ticket.service';
 import { emitQueueUpdate } from '@/lib/socket-emitter';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 const createTicketSchema = z.object({
   phone: z
@@ -13,6 +14,18 @@ const createTicketSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    '127.0.0.1';
+
+  if (!checkRateLimit(`tickets:${ip}`, 10, 60_000)) {
+    return NextResponse.json(
+      { error: 'Trop de demandes. Veuillez patienter une minute.' },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await req.json();
     const parsed = createTicketSchema.safeParse(body);

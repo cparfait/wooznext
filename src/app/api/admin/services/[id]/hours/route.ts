@@ -16,13 +16,13 @@ const updateHoursSchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
-    const serviceId = params.id;
+    const { id: serviceId } = await params;
 
     // Verify service exists
     const service = await prisma.service.findUnique({ where: { id: serviceId } });
@@ -62,13 +62,13 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
-    const serviceId = params.id;
+    const { id: serviceId } = await params;
 
     // Verify service exists
     const service = await prisma.service.findUnique({ where: { id: serviceId } });

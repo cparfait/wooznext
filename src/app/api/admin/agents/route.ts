@@ -3,17 +3,25 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
+import { auditLog } from '@/lib/audit';
 
 /** Capitalize first letter of each part (separated by - or space) */
 function formatFirstName(s: string): string {
   return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
+const passwordSchema = z
+  .string()
+  .min(12, 'Mot de passe trop court (min 12 caractères)')
+  .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
+  .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
+  .regex(/[^A-Za-z0-9]/, 'Le mot de passe doit contenir au moins un caractère spécial');
+
 const createAgentSchema = z.object({
   firstName: z.string().min(1, 'Prenom requis'),
   lastName: z.string().min(1, 'Nom requis'),
   email: z.string().email('Email invalide'),
-  password: z.string().min(6, 'Mot de passe trop court (min 6)'),
+  password: passwordSchema,
   role: z.enum(['ADMIN', 'AGENT']).default('AGENT'),
   serviceId: z.string().nullable().optional(),
 });
@@ -23,7 +31,14 @@ export async function GET() {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
+    // AGENT role can only see agents from their own service
+    const serviceFilter =
+      session.user.role === 'AGENT' && session.user.serviceId
+        ? { serviceId: session.user.serviceId }
+        : {};
+
     const agents = await prisma.agent.findMany({
+      where: serviceFilter,
       orderBy: { lastName: 'asc' },
       select: {
         id: true,
@@ -69,6 +84,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, firstName: true, lastName: true, email: true, role: true },
     });
 
+    auditLog('AGENT_CREATED', { actorId: session.user.id, targetId: agent.id, email: agent.email, role: agent.role });
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error: any) {
     if (error?.code === 'P2002') {

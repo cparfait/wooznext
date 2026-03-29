@@ -6,13 +6,13 @@ import { getAdminSession } from '@/lib/api-auth';
 
 const LOGO_DIR = path.join(process.cwd(), 'data');
 const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+// SVG intentionally excluded: SVG files can contain embedded scripts (XSS stored)
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 function getExtension(mimeType: string): string {
   const map: Record<string, string> = {
     'image/png': 'png',
     'image/jpeg': 'jpg',
-    'image/svg+xml': 'svg',
     'image/webp': 'webp',
   };
   return map[mimeType] || 'png';
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Remove any existing logo
-  for (const ext of ['png', 'jpg', 'jpeg', 'svg', 'webp']) {
+  for (const ext of ['png', 'jpg', 'jpeg', 'webp']) {
     const existing = path.join(LOGO_DIR, `logo.${ext}`);
     if (existsSync(existing)) {
       await unlink(existing);
@@ -73,7 +73,7 @@ export async function DELETE() {
     return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
   }
 
-  for (const ext of ['png', 'jpg', 'jpeg', 'svg', 'webp']) {
+  for (const ext of ['png', 'jpg', 'jpeg', 'webp']) {
     const existing = path.join(LOGO_DIR, `logo.${ext}`);
     if (existsSync(existing)) {
       await unlink(existing);

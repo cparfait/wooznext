@@ -3,18 +3,19 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { serviceId: string } }
+  { params }: { params: Promise<{ serviceId: string }> }
 ) {
   try {
+    const { serviceId } = await params;
     const service = await prisma.service.findUnique({
-      where: { id: params.serviceId },
+      where: { id: serviceId },
     });
     if (!service) {
       return NextResponse.json({ error: 'Service introuvable' }, { status: 404 });
     }
 
     const existing = await prisma.openingHours.findMany({
-      where: { serviceId: params.serviceId },
+      where: { serviceId },
       orderBy: { dayOfWeek: 'asc' },
     });
 
