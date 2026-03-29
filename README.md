@@ -98,6 +98,8 @@ npx prisma migrate dev
 npm run db:seed
 ```
 
+> **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee (ex: migration vide ou migration de seed). Cela cree des conflits lors d'un `migrate reset`. Si Prisma propose de creer une migration, assurez-vous qu'elle correspond a un vrai changement de schema avant de valider.
+
 ### 5. Lancer l'application
 
 ```bash
@@ -198,6 +200,32 @@ sudo systemctl restart caddy
 ```
 
 Caddy obtient automatiquement un certificat Let's Encrypt.
+
+## Depannage
+
+### Conflit de migrations locales
+
+Si `npx prisma migrate dev` ou `migrate reset` echoue avec une erreur sur une migration inconnue, c'est qu'une migration a ete creee localement et n'est pas dans le repo. Supprimez-la :
+
+```powershell
+# Windows — remplacez le nom par celui indique dans l'erreur
+Remove-Item -Recurse -Force "prisma\migrations\NOM_DE_LA_MIGRATION"
+```
+
+```bash
+# Linux/Mac
+rm -rf prisma/migrations/NOM_DE_LA_MIGRATION
+```
+
+Puis relancez `npx prisma migrate reset`.
+
+### Regenerer le client Prisma apres un changement de schema
+
+```bash
+npx prisma generate
+```
+
+A faire systematiquement apres un `git pull` qui modifie `prisma/schema.prisma`.
 
 ## Commandes utiles
 
