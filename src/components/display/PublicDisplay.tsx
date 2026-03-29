@@ -74,6 +74,8 @@ export default function PublicDisplay({
   const [calling, setCalling] = useState(false);
   const [callingCode, setCallingCode] = useState<string | null>(null);
   const [callingCounter, setCallingCounter] = useState<string | null>(null);
+  const [lastCalledCode, setLastCalledCode] = useState<string | null>(initialData.currentCode);
+  const [lastCalledCounter, setLastCalledCounter] = useState<string | null>(initialData.currentCounter);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
   const [tickerMessage, setTickerMessage] = useState<string | null>(initialTickerMessage);
@@ -198,8 +200,12 @@ export default function PublicDisplay({
     useCallback((event: string, eventData: any) => {
       if (event === 'ticket:called') {
         // Capture the called ticket info for the animation
-        setCallingCode(eventData?.displayCode ?? null);
-        setCallingCounter(eventData?.counterLabel ?? null);
+        const code = eventData?.displayCode ?? null;
+        const counter = eventData?.counterLabel ?? null;
+        setCallingCode(code);
+        setCallingCounter(counter);
+        if (code) setLastCalledCode(code);
+        if (counter !== undefined) setLastCalledCounter(counter);
         setCalling(true);
         playNotificationSound();
         setTimeout(() => setCalling(false), 30000);
@@ -325,9 +331,9 @@ export default function PublicDisplay({
             }}
           >
             {(() => {
-              // During animation, use the socket event data; otherwise use API data
-              const displayCode = calling ? (callingCode ?? data.currentCode) : data.currentCode;
-              const displayCounter = calling ? (callingCounter ?? data.currentCounter) : data.currentCounter;
+              // During animation, use the socket event data; otherwise use API data with fallback to last called
+              const displayCode = calling ? (callingCode ?? data.currentCode) : (data.currentCode ?? lastCalledCode);
+              const displayCounter = calling ? (callingCounter ?? data.currentCounter) : (data.currentCounter ?? lastCalledCounter);
 
               if (displayCode) {
                 return (
