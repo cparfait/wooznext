@@ -100,6 +100,13 @@ npm run db:seed
 
 > **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee (ex: migration vide ou migration de seed). Cela cree des conflits lors d'un `migrate reset`. Si Prisma propose de creer une migration, assurez-vous qu'elle correspond a un vrai changement de schema avant de valider.
 
+Si erreur SSL :
+```bash
+set NODE_TLS_REJECT_UNAUTHORIZED=0
+npx prisma migrate dev
+set NODE_TLS_REJECT_UNAUTHORIZED=   # Remettre par défaut après
+```
+
 ### 5. Lancer l'application
 
 ```bash
