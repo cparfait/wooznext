@@ -59,9 +59,13 @@ cd wooznext
 
 ### 2. Configurer les variables d'environnement
 
+# Linux/Mac
 ```bash
-cp .env.example .env        # Linux/Mac
-copy .env.example .env      # Windows
+cp .env.example .env
+```
+# Windows   
+```bash
+copy .env.example .env 
 ```
 
 Editez le fichier `.env` :
