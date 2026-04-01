@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 
@@ -11,39 +11,16 @@ interface CounterOption {
 }
 
 function CounterSelectionStep({
+  counters,
   onSelect,
   onSkip,
 }: {
+  counters: CounterOption[];
   onSelect: (counterId: string) => void;
   onSkip: () => void;
 }) {
-  const [counters, setCounters] = useState<CounterOption[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState<string | null>(null);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    async function fetchCounters() {
-      try {
-        const res = await fetch('/api/agent/counters');
-        if (!res.ok) {
-          onSkip();
-          return;
-        }
-        const data = await res.json();
-        if (!data.counters || data.counters.length === 0) {
-          onSkip();
-          return;
-        }
-        setCounters(data.counters);
-      } catch {
-        onSkip();
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchCounters();
-  }, [onSkip]);
 
   async function handleSelect(counterId: string) {
     setSelecting(counterId);
@@ -67,14 +44,6 @@ function CounterSelectionStep({
       setError('Erreur de connexion au serveur');
       setSelecting(null);
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="text-center text-gray-400">
-        Chargement des guichets...
-      </div>
-    );
   }
 
   return (
@@ -132,13 +101,68 @@ function CounterSelectionStep({
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'login' | 'counter'>('login');
+  const [counters, setCounters] = useState<CounterOption[]>([]);
+  // Flag set after signIn() succeeds — we wait for useSession to confirm auth
+  const [awaitingSession, setAwaitingSession] = useState(false);
 
   const callbackUrl = searchParams.get('callbackUrl') || '/agent';
+
+  useEffect(() => {
+    if (!awaitingSession || status === 'loading') return;
+
+    if (status === 'unauthenticated') {
+      // Session never came — rare edge case, allow user to retry
+      setAwaitingSession(false);
+      setLoading(false);
+      setError('La connexion a echoue. Veuillez reessayer.');
+      return;
+    }
+
+    if (status !== 'authenticated' || !session?.user) return;
+
+    const role = (session.user as any).role as string;
+    const serviceId = (session.user as any).serviceId as string | null;
+
+    if (role === 'AGENT' && !serviceId) {
+      signOut({ redirect: false });
+      setError("Votre compte n'est pas rattache a un service. Contactez l'administrateur.");
+      setLoading(false);
+      setAwaitingSession(false);
+      return;
+    }
+
+    if (role === 'ADMIN') {
+      // Admins skip counter selection entirely
+      router.push(callbackUrl);
+      return;
+    }
+
+    // AGENT with serviceId: pre-fetch counters to avoid flash if none available
+    fetch('/api/agent/counters')
+      .then((r) => (r.ok ? r.json() : Promise.resolve({ counters: [] })))
+      .then((data) => {
+        setAwaitingSession(false);
+        setLoading(false);
+        const available: CounterOption[] = data.counters ?? [];
+        if (available.length > 0) {
+          setCounters(available);
+          setStep('counter');
+        } else {
+          router.push(callbackUrl);
+        }
+      })
+      .catch(() => {
+        setAwaitingSession(false);
+        setLoading(false);
+        router.push(callbackUrl);
+      });
+  }, [awaitingSession, status, session, callbackUrl, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,17 +181,8 @@ function LoginForm() {
       return;
     }
 
-    // Vérifier que l'agent a un service assigné (sauf admin)
-    const session = await fetch('/api/auth/session').then((r) => r.json());
-    if (session?.user?.role === 'AGENT' && !session?.user?.serviceId) {
-      await import('next-auth/react').then(({ signOut }) => signOut({ redirect: false }));
-      setError('Votre compte n\'est pas rattaché à un service. Contactez l\'administrateur.');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
-    setStep('counter');
+    // signIn() succeeded — wait for useSession to reflect the authenticated state
+    setAwaitingSession(true);
   }
 
   function handleCounterDone() {
@@ -177,6 +192,7 @@ function LoginForm() {
   if (step === 'counter') {
     return (
       <CounterSelectionStep
+        counters={counters}
         onSelect={handleCounterDone}
         onSkip={handleCounterDone}
       />
