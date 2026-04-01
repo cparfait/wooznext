@@ -42,33 +42,136 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 | Authentification | NextAuth.js | 4.x |
 | Conteneurs | Docker + Docker Compose | - |
 
-## Prerequis
+## Installation locale
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac/Linux)
-- [Node.js 22 LTS](https://nodejs.org/)
-- [Git](https://git-scm.com/)
+### Prerequis
 
-## Installation locale (Windows / Mac / Linux)
+| Outil | Windows | Linux |
+|---|---|---|
+| Docker | [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) | Docker Engine (voir ci-dessous) |
+| Node.js | [Node.js 22 LTS](https://nodejs.org/) | nvm ou NodeSource (voir ci-dessous) |
+| Git | [Git for Windows](https://git-scm.com/) | `sudo apt install git` |
 
-### 1. Cloner le projet
+---
+
+### Installation sur Windows
+
+> **Docker Desktop for Windows est requis.** Il fournit Docker et Docker Compose en un seul installeur et s'integre avec WSL2.
+
+#### 1. Installer Docker Desktop
+
+Telechargez et installez [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/).
+Au premier lancement, activez le backend **WSL2** dans _Settings > General > Use the WSL 2 based engine_.
+
+#### 2. Cloner le projet
+
+```powershell
+git clone https://github.com/cparfait/wooznext.git
+cd wooznext
+```
+
+#### 3. Configurer les variables d'environnement
+
+```powershell
+copy .env.example .env
+```
+
+Editez `.env` :
+
+```env
+DATABASE_URL=postgresql://wooznext:wooznext_dev@localhost:5432/wooznext
+NEXTAUTH_SECRET=votre_secret_ici
+NEXTAUTH_URL=http://localhost:3000
+```
+
+Pour generer un secret securise :
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+#### 4. Demarrer la base de donnees
+
+```powershell
+docker compose -f docker-compose.dev.yml up -d
+```
+
+Verifiez que PostgreSQL tourne sur `localhost:5432` :
+
+```powershell
+docker compose -f docker-compose.dev.yml ps
+```
+
+#### 5. Installer les dependances et preparer la base
+
+```powershell
+npm install
+npx prisma migrate dev
+npm run db:seed
+```
+
+> **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee. Si Prisma en propose une, verifiez qu'elle correspond a un vrai changement de schema avant de valider.
+
+Si vous obtenez une erreur SSL :
+
+```powershell
+set NODE_TLS_REJECT_UNAUTHORIZED=0
+npx prisma migrate dev
+set NODE_TLS_REJECT_UNAUTHORIZED=
+```
+
+#### 6. Lancer l'application
+
+```powershell
+npm run dev
+```
+
+L'application est accessible sur **http://localhost:3000**.
+
+---
+
+### Installation sur Linux
+
+> **Docker Engine** (sans Docker Desktop) est suffisant sur Linux. La procedure ci-dessous est valable sur Ubuntu/Debian.
+
+#### 1. Installer Docker Engine
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Verifiez l'installation :
+
+```bash
+docker --version
+docker compose version
+```
+
+#### 2. Installer Node.js 22 via nvm
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc   # ou source ~/.zshrc selon votre shell
+nvm install 22
+nvm use 22
+```
+
+#### 3. Cloner le projet
 
 ```bash
 git clone https://github.com/cparfait/wooznext.git
 cd wooznext
 ```
 
-### 2. Configurer les variables d'environnement
+#### 4. Configurer les variables d'environnement
 
-# Linux/Mac
 ```bash
 cp .env.example .env
 ```
-# Windows   
-```bash
-copy .env.example .env 
-```
 
-Editez le fichier `.env` :
+Editez `.env` :
 
 ```env
 DATABASE_URL=postgresql://wooznext:wooznext_dev@localhost:5432/wooznext
@@ -79,22 +182,22 @@ NEXTAUTH_URL=http://localhost:3000
 Pour generer un secret securise :
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+openssl rand -base64 32
 ```
 
-### 3. Demarrer la base de donnees
+#### 5. Demarrer la base de donnees
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-Cela lance PostgreSQL sur `localhost:5432`. Verifiez avec :
+Verifiez que PostgreSQL tourne sur `localhost:5432` :
 
 ```bash
 docker compose -f docker-compose.dev.yml ps
 ```
 
-### 4. Installer les dependances et preparer la base
+#### 6. Installer les dependances et preparer la base
 
 ```bash
 npm install
@@ -102,16 +205,9 @@ npx prisma migrate dev
 npm run db:seed
 ```
 
-> **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee (ex: migration vide ou migration de seed). Cela cree des conflits lors d'un `migrate reset`. Si Prisma propose de creer une migration, assurez-vous qu'elle correspond a un vrai changement de schema avant de valider.
+> **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee. Si Prisma en propose une, verifiez qu'elle correspond a un vrai changement de schema avant de valider.
 
-Si erreur SSL :
-```bash
-set NODE_TLS_REJECT_UNAUTHORIZED=0
-npx prisma migrate dev
-set NODE_TLS_REJECT_UNAUTHORIZED=   # Remettre par défaut après
-```
-
-### 5. Lancer l'application
+#### 7. Lancer l'application
 
 ```bash
 npm run dev
