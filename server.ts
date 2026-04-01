@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
+import { setSocketIO } from './src/lib/socket-server';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -35,8 +36,8 @@ app.prepare().then(() => {
     },
   });
 
-  // Store io instance globally so API routes can access it
-  (global as any).io = io;
+  // Store io instance in typed singleton so API routes can access it
+  setSocketIO(io);
 
   io.on('connection', (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);

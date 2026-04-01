@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { getSocketIOOrNull } from '@/lib/socket-server';
 
 export async function POST(
   req: NextRequest,
@@ -32,7 +33,7 @@ export async function POST(
     }
 
     // Force disconnect the agent's socket sessions
-    const io = (global as any).io;
+    const io = getSocketIOOrNull();
     if (io) {
       const sockets = await io.fetchSockets();
       for (const s of sockets) {

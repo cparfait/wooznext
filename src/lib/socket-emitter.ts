@@ -1,11 +1,7 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { getSocketIOOrNull } from './socket-server';
 
-/**
- * Get the global Socket.IO server instance.
- * Returns null if not running within the custom server (e.g., during build).
- */
-function getIO(): SocketIOServer | null {
-  return (global as any).io ?? null;
+function getIO() {
+  return getSocketIOOrNull();
 }
 
 /**
