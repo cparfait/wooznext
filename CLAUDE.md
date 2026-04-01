@@ -29,7 +29,7 @@ L'agent appelle les visiteurs depuis une interface dédiée. Un écran public (C
 
 | Couche | Technologie | Version |
 |---|---|---|
-| Framework | Next.js (App Router) | 14.x |
+| Framework | Next.js (App Router) | 15.x |
 | Langage | TypeScript | 5.x |
 | Style | Tailwind CSS | 3.x |
 | Base de données | PostgreSQL | 16 |

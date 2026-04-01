@@ -14,7 +14,7 @@ build/
 .env.*.local
 
 # Prisma
-prisma/migrations/*.sql
+# Les fichiers de migration SQL doivent être versionnés (requis par prisma migrate deploy)
 
 # Logs
 *.log
