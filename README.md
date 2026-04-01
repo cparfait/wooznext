@@ -245,6 +245,57 @@ L'application est accessible sur **http://localhost:3000**.
 4. **Temps reel** : observez la mise a jour instantanee sur la vue visiteur (son + popup "C'est votre tour !").
 5. **Affichage public** : ouvrez l'URL d'affichage (`/display/SERVICE_ID`) dans un troisieme onglet pour voir le ticket en cours et le bandeau des appels.
 
+## Tests End-to-End (Playwright)
+
+Les tests E2E couvrent les parcours critiques : connexion agent et prise de ticket visiteur.
+
+### Prerequis
+
+Les navigateurs Playwright doivent etre installes une seule fois sur la machine :
+
+```bash
+npx playwright install chromium --with-deps
+```
+
+> Les binaires (~300 Mo) sont telecharges dans le cache systeme (`~/.cache/ms-playwright/`). Rien n'est ajoute au depot git.
+
+### Lancer les tests
+
+La base de donnees doit etre demarree avant de lancer les tests. Playwright demarre le serveur Next.js automatiquement (ou reutilise celui deja en cours).
+
+```bash
+# 1. Demarrer PostgreSQL (si pas deja lance)
+docker compose -f docker-compose.dev.yml up -d
+
+# 2. Lancer les tests en mode terminal
+npm run test:e2e
+
+# 3. Ou en mode interactif (UI Playwright)
+npm run test:e2e:ui
+```
+
+### Scenarios couverts
+
+**Connexion agent** (`tests/login.spec.ts`) :
+- Connexion valide (agent) → redirection vers `/agent`
+- Connexion valide (admin) → redirection vers `/agent`
+- Identifiants invalides → message d'erreur
+- Session deja active → acces direct au dashboard
+
+**Parcours visiteur** (`tests/prise-ticket.spec.ts`) :
+- URL sans `?service=` → message d'erreur
+- Service valide → formulaire visible
+- Prise de ticket → redirection vers `/ticket/<id>`
+- Anti-doublon → meme numero de telephone retourne le meme ticket
+
+### Rapport HTML
+
+Apres chaque execution, un rapport HTML est genere :
+
+```bash
+npx playwright show-report
+```
+
 ## Deploiement en production (VPS)
 
 ### 1. Preparer le serveur
