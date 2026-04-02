@@ -392,32 +392,29 @@ export default function PublicDisplay({
             })()}
           </div>
 
-          {/* Bottom info */}
+          {/* Bottom info: tickets en cours avec guichets + en attente */}
           <div
-            className="absolute bottom-8 left-10 right-10 flex items-center justify-center gap-6"
+            className="absolute bottom-8 left-10 right-10 flex flex-wrap items-center justify-center gap-4"
             style={{ marginBottom: hasTicker && tickerConfig.position === 'bottom' ? `${tickerConfig.height}px` : '0' }}
           >
-            {data.previousTickets.slice(0, 1).map((ticket, index) => (
-              <div key={index} className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
-                <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-                  Precedent
+            {data.servingTickets.map((t, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
+                <span className="text-2xl font-black text-primary-700">
+                  {t.displayCode}
                 </span>
-                <span className="text-2xl font-black text-gray-900">
-                  {ticket.displayCode}
-                </span>
-                {ticket.counterLabel && (
-                  <span className="text-sm font-semibold text-primary-700">
-                    {ticket.counterLabel}
+                {t.counterLabel && (
+                  <span className="text-sm font-semibold text-gray-500">
+                    {t.counterLabel}
                   </span>
                 )}
               </div>
             ))}
             {data.waitingCount > 0 && (
-              <div className="flex items-center gap-3 rounded-2xl bg-white px-6 py-3 shadow-sm">
+              <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
                 <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
                   En attente
                 </span>
-                <span className="text-2xl font-black text-gray-900">
+                <span className="text-2xl font-black text-orange-500">
                   {data.waitingCount}
                 </span>
               </div>

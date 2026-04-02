@@ -47,11 +47,17 @@ export function useServiceSocket(
     if (!serviceId) return;
 
     const socket = getSocket();
-    socket.emit('join:service', serviceId);
 
-    if (agentId) {
-      socket.emit('agent:register', agentId);
+    function joinAndRegister() {
+      socket.emit('join:service', serviceId);
+      if (agentId) {
+        socket.emit('agent:register', agentId);
+      }
     }
+
+    // Join on first connect and on every reconnect
+    joinAndRegister();
+    socket.on('connect', joinAndRegister);
 
     const events = ['queue:updated', 'ticket:called', 'ticket:completed'];
     const handler = (event: string) => (data: any) => {
@@ -65,6 +71,7 @@ export function useServiceSocket(
     });
 
     return () => {
+      socket.off('connect', joinAndRegister);
       handlers.forEach(({ event, handler: h }) => socket.off(event, h));
     };
   }, [serviceId, agentId]);
@@ -85,7 +92,14 @@ export function useTicketSocket(
     if (!ticketId) return;
 
     const socket = getSocket();
-    socket.emit('join:ticket', ticketId);
+
+    function joinTicket() {
+      socket.emit('join:ticket', ticketId);
+    }
+
+    // Join on first connect and on every reconnect
+    joinTicket();
+    socket.on('connect', joinTicket);
 
     const events = ['ticket:called', 'ticket:completed', 'ticket:returned', 'ticket:no-show'];
     const handler = (event: string) => (data: any) => {
@@ -99,6 +113,7 @@ export function useTicketSocket(
     });
 
     return () => {
+      socket.off('connect', joinTicket);
       handlers.forEach(({ event, handler: h }) => socket.off(event, h));
     };
   }, [ticketId]);
