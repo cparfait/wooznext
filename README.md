@@ -7,9 +7,10 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 ## Fonctionnalites
 
 - **Vue Visiteur** (mobile-first) : prise de ticket par QR code, suivi en temps reel, son de notification, confetti quand c'est son tour
-- **Vue Agent** : appel du suivant, appel manuel, rappel du visiteur, retour en file, marquage absent, ajout de ticket, cloture du guichet, changement de mot de passe
-- **Vue Admin** : gestion des services (CRUD, prefixe, horaires, guichets, reinitialisation par service), agents (nom/prenom, service, role), statistiques filtrees, upload du logo, QR codes par service
-- **Affichage Public** (Chromecast) : ticket en cours en grand format, dernier ticket appele persistant avec guichet, bandeau lateral avec liste des tickets appeles, flux d'actualites configurable avec images, message defilant urgent, flash + son a chaque appel
+- **Vue Agent** : appel du suivant, appel manuel, rappel du visiteur, retour en file avec motif optionnel, marquage absent, ajout de ticket, cloture du guichet, changement de mot de passe
+- **Retour en file** : lorsqu'un ticket est remis en file, l'agent peut saisir une raison. Les tickets remis en file sont priorises lors de l'appel suivant via un panneau de selection dedie
+- **Vue Admin** : gestion des services (CRUD, prefixe, horaires, guichets, reinitialisation par service), agents (nom/prenom, service, role, anonymisation), statistiques filtrees avec export PDF/CSV, upload du logo, QR codes par service
+- **Affichage Public** (Chromecast) : ticket en cours en grand format avec label guichet, bandeau lateral gauche "Appels precedents", flux d'actualites configurable avec images, message defilant urgent, flash + son a chaque appel
 - **Roles** : ADMIN (gestion globale) et AGENT (operations file + administration de son propre service)
 - **Presence agent** : liberation automatique du guichet a la deconnexion (support multi-onglets)
 - **QR Code** : generation automatique par service via `/api/qrcode?serviceId=ID`
@@ -40,6 +41,11 @@ Le visiteur scanne un QR code, saisit son numero de telephone, et recoit un tick
 | ORM | Prisma | 5.x |
 | Temps reel | Socket.IO | 4.x |
 | Authentification | NextAuth.js | 4.x |
+| Hachage | bcryptjs | 2.x |
+| QR Code | qrcode | 1.x |
+| Validation | Zod | 3.x |
+| Export PDF | jsPDF + jspdf-autotable | - |
+| Tests E2E | Playwright | - |
 | Conteneurs | Docker + Docker Compose | - |
 
 ## Installation locale
@@ -457,6 +463,7 @@ npx tsx scripts/midnight-cleanup.ts  # Fermer les tickets ouverts
 wooznext/
 ├── prisma/              # Schema et migrations
 ├── scripts/             # Scripts utilitaires (purge RGPD, nettoyage minuit)
+├── tests/               # Tests End-to-End (Playwright)
 ├── src/
 │   ├── app/             # Pages et API (App Router)
 │   │   ├── admin/       # Interface admin
@@ -468,7 +475,8 @@ wooznext/
 │   │       └── ...
 │   ├── components/      # Composants React
 │   ├── hooks/           # Hooks Socket.IO
-│   └── lib/             # Services, auth, audit, rate-limit, utilitaires
+│   ├── lib/             # Services, auth, audit, rate-limit, utilitaires
+│   └── types/           # Declarations TypeScript supplementaires
 ├── server.ts            # Serveur custom (Next.js + Socket.IO)
 ├── Dockerfile           # Build multi-stage production (Node.js 22)
 ├── docker-compose.yml   # Production (app + db)
