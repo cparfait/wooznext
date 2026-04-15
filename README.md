@@ -402,6 +402,35 @@ docker run -d \
 
 > **Important** : l'option **Websockets Support** doit etre activee pour que les mises a jour temps reel (Socket.IO) fonctionnent.
 
+## Sauvegarde et maintenance
+
+### Sauvegarder la base de donnees
+
+```bash
+docker compose exec db pg_dump -U wooznext wooznext > backup_$(date +%Y%m%d).sql
+```
+
+### Restaurer une sauvegarde
+
+```bash
+docker compose exec -T db psql -U wooznext -d wooznext < backup.sql
+```
+
+### Sauvegarde automatique via cron
+
+```bash
+crontab -e
+0 2 * * * cd /chemin/wooznext && docker compose exec -T db pg_dump -U wooznext wooznext > /backups/wooznext_$(date +\%Y\%m\%d).sql
+```
+
+### Mettre a jour l'application apres un push GitHub
+
+```bash
+git pull origin main
+docker compose up -d --build
+docker compose exec app npx prisma migrate deploy
+```
+
 ## Depannage
 
 ### Conflit de migrations locales
@@ -428,6 +457,36 @@ npx prisma migrate dev     # Appliquer les nouvelles migrations
 ```
 
 A faire systematiquement apres un `git pull` qui modifie `prisma/schema.prisma`.
+
+### L'application ne demarre pas (production)
+
+```bash
+docker compose logs app             # Verifier les erreurs
+docker compose ps                   # Etat des conteneurs
+# Verifier le fichier .env : variables correctes ?
+```
+
+### Erreur de connexion a la base
+
+```bash
+docker compose logs db              # PostgreSQL est-il pret ?
+docker compose exec db pg_isready   # Tester la connexion
+# Verifier DATABASE_URL dans .env
+```
+
+### Probleme de certificat SSL
+
+- Verifier les logs NPM : `docker logs npm`
+- Verifier que le DNS pointe bien vers le serveur
+- Verifier que le port 80 est ouvert (necessaire pour Let's Encrypt)
+
+### Reinitialiser completement
+
+```bash
+docker compose down -v              # Supprime conteneurs + volumes (ATTENTION)
+docker compose up -d --build        # Tout reconstruire
+docker compose exec app npx tsx prisma/seed.ts  # Reinjecter les donnees de test
+```
 
 ## Commandes utiles
 
