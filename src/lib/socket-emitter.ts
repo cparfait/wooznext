@@ -10,31 +10,34 @@ function getIO() {
  */
 export function emitQueueUpdate(serviceId: string) {
   const io = getIO();
-  if (!io) return;
+  if (!io) { console.warn('[Socket] emitQueueUpdate: io is null'); return; }
   io.to(`service:${serviceId}`).emit('queue:updated', { serviceId });
 }
 
 /**
  * Emit when a ticket is called by an agent.
  */
-export function emitTicketCalled(serviceId: string, ticketId: string, displayCode: string, counterLabel?: string | null) {
+export function emitTicketCalled(serviceId: string, ticketId: string, displayCode: string, counterLabel?: string | null, returnReason?: string | null) {
   const io = getIO();
-  if (!io) return;
+  if (!io) { console.warn('[Socket] emitTicketCalled: io is null'); return; }
 
-  // Notify the service room (agent dashboard + display screen)
-  io.to(`service:${serviceId}`).emit('ticket:called', {
+  const payload = {
     serviceId,
     ticketId,
     displayCode,
     counterLabel: counterLabel ?? null,
-  });
+    returnReason: returnReason ?? null,
+  };
 
-  // Notify the specific ticket room (visitor mobile)
+  io.to(`service:${serviceId}`).emit('ticket:called', payload);
+
   io.to(`ticket:${ticketId}`).emit('ticket:called', {
     ticketId,
     displayCode,
     counterLabel: counterLabel ?? null,
+    returnReason: returnReason ?? null,
   });
+  console.log(`[Socket] emitTicketCalled: service=${serviceId}, ticket=${ticketId} (${displayCode}), rooms=service:${serviceId},ticket:${ticketId}`);
 }
 
 /**
@@ -42,7 +45,7 @@ export function emitTicketCalled(serviceId: string, ticketId: string, displayCod
  */
 export function emitTicketCompleted(serviceId: string, ticketId: string) {
   const io = getIO();
-  if (!io) return;
+  if (!io) { console.warn('[Socket] emitTicketCompleted: io is null'); return; }
 
   io.to(`service:${serviceId}`).emit('ticket:completed', {
     serviceId,
@@ -74,4 +77,16 @@ export function emitTicketNoShow(serviceId: string, ticketId: string) {
 
   io.to(`service:${serviceId}`).emit('queue:updated', { serviceId });
   io.to(`ticket:${ticketId}`).emit('ticket:no-show', { ticketId });
+}
+
+export function emitTickerUpdated(serviceId: string) {
+  const io = getIO();
+  if (!io) return;
+  io.to(`service:${serviceId}`).emit('ticker:updated', { serviceId });
+}
+
+export function emitFeedUpdated(serviceId: string) {
+  const io = getIO();
+  if (!io) return;
+  io.to(`service:${serviceId}`).emit('feed:updated', { serviceId });
 }

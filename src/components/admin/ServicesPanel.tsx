@@ -16,6 +16,7 @@ interface Service {
   tickerBgColor: string;
   tickerTextColor: string;
   tickerFontSize: number;
+  showPreviousTickets: boolean;
   _count: { agents: number; counters: number };
   activeCounters: number;
   connectedAgents: number;
@@ -409,14 +410,28 @@ function DisplaySettings({
   initialFeedActive,
   initialTickerMessage,
   initialTickerActive,
+  initialTickerPosition,
+  initialTickerHeight,
+  initialTickerBgColor,
+  initialTickerTextColor,
+  initialTickerFontSize,
+  initialShowPreviousTickets,
   onUpdate,
+  service,
 }: {
   serviceId: string;
   initialFeedUrl: string | null;
   initialFeedActive: boolean;
   initialTickerMessage: string | null;
   initialTickerActive: boolean;
+  initialTickerPosition: string;
+  initialTickerHeight: number;
+  initialTickerBgColor: string;
+  initialTickerTextColor: string;
+  initialTickerFontSize: number;
+  initialShowPreviousTickets: boolean;
   onUpdate: () => void;
+  service: Service;
 }) {
   const [feedUrl, setFeedUrl] = useState(initialFeedUrl || '');
   const [feedActive, setFeedActive] = useState(initialFeedActive);
@@ -426,9 +441,17 @@ function DisplaySettings({
 
   const [ticker, setTicker] = useState(initialTickerMessage || '');
   const [tickerActive, setTickerActive] = useState(initialTickerActive);
+  const [tickerPosition, setTickerPosition] = useState(initialTickerPosition || 'bottom');
+  const [tickerHeight, setTickerHeight] = useState(initialTickerHeight || 60);
+  const [tickerBgColor, setTickerBgColor] = useState(initialTickerBgColor || '#dc2626');
+  const [tickerTextColor, setTickerTextColor] = useState(initialTickerTextColor || '#ffffff');
+  const [tickerFontSize, setTickerFontSize] = useState(initialTickerFontSize || 24);
   const [tickerDirty, setTickerDirty] = useState(false);
   const [tickerLoading, setTickerLoading] = useState(false);
   const [tickerMsg, setTickerMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showTickerSettings, setShowTickerSettings] = useState(false);
+  const [showPrevTickets, setShowPrevTickets] = useState(initialShowPreviousTickets);
+  const [prevTicketsLoading, setPrevTicketsLoading] = useState(false);
 
   async function saveFeed() {
     setFeedLoading(true);
@@ -482,7 +505,14 @@ function DisplaySettings({
       const res = await fetch(`/api/admin/services/${serviceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickerMessage: ticker.trim() || null }),
+        body: JSON.stringify({
+          tickerMessage: ticker.trim() || null,
+          tickerPosition,
+          tickerHeight,
+          tickerBgColor,
+          tickerTextColor,
+          tickerFontSize,
+        }),
       });
       if (res.ok) {
         setTickerMsg({ type: 'success', text: 'Message enregistre.' });
@@ -497,6 +527,24 @@ function DisplaySettings({
     }
     setTickerLoading(false);
     setTimeout(() => setTickerMsg(null), 3000);
+  }
+
+  async function togglePreviousTickets() {
+    setPrevTicketsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/services/${serviceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showPreviousTickets: !showPrevTickets }),
+      });
+      if (res.ok) {
+        setShowPrevTickets(!showPrevTickets);
+        onUpdate();
+      }
+    } catch {
+      // ignore
+    }
+    setPrevTicketsLoading(false);
   }
 
   async function deleteTicker() {
@@ -522,6 +570,25 @@ function DisplaySettings({
 
   return (
     <div className="mt-3 space-y-4 border-t border-gray-100 pt-3">
+      {/* Previous tickets column */}
+      <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+        <div>
+          <p className="text-xs font-medium text-gray-700">Colonne tickets precedents</p>
+          <p className="text-[10px] text-gray-400">Affiche les 3 derniers appels sur l&apos;ecran public</p>
+        </div>
+        <button
+          onClick={togglePreviousTickets}
+          disabled={prevTicketsLoading}
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+            showPrevTickets
+              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          }`}
+        >
+          {prevTicketsLoading ? '...' : showPrevTickets ? 'Active' : 'Desactive'}
+        </button>
+      </div>
+
       {/* Feed URL */}
       <div>
         <div className="mb-1 flex items-center justify-between">
@@ -593,9 +660,9 @@ function DisplaySettings({
       <div>
         <div className="mb-1 flex items-center justify-between">
           <p className="text-xs font-medium text-gray-500">
-            Message defilant urgent (bandeau rouge en bas de l&apos;ecran)
+            Message defilant urgent
           </p>
-          {initialTickerMessage && (
+          {(initialTickerMessage || ticker) && (
             <button
               onClick={async () => {
                 setTickerLoading(true);
@@ -634,12 +701,12 @@ function DisplaySettings({
           />
           <button
             onClick={saveTicker}
-            disabled={tickerLoading || !tickerDirty}
+            disabled={tickerLoading || (!tickerDirty && !ticker.trim())}
             className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-50"
           >
             {tickerLoading ? '...' : 'Publier'}
           </button>
-          {initialTickerMessage && (
+          {(initialTickerMessage || ticker) && (
             <button
               onClick={deleteTicker}
               disabled={tickerLoading}
@@ -649,6 +716,131 @@ function DisplaySettings({
             </button>
           )}
         </div>
+
+        {/* Ticker settings toggle */}
+        <button
+          type="button"
+          onClick={() => setShowTickerSettings(!showTickerSettings)}
+          className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+        >
+          <svg
+            className={`h-3.5 w-3.5 transition-transform ${showTickerSettings ? 'rotate-90' : ''}`}
+            fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+          Personnaliser l&apos;apparence
+        </button>
+
+        {showTickerSettings && (
+          <div className="mt-2 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Position</label>
+                <select
+                  value={tickerPosition}
+                  onChange={(e) => { setTickerPosition(e.target.value); setTickerDirty(true); }}
+                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                >
+                  <option value="top">Haut</option>
+                  <option value="middle">Milieu</option>
+                  <option value="bottom">Bas</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Hauteur</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={30}
+                    max={120}
+                    value={tickerHeight}
+                    onChange={(e) => { setTickerHeight(Number(e.target.value)); setTickerDirty(true); }}
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right text-xs text-gray-500">{tickerHeight}px</span>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Couleur du bandeau</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={tickerBgColor}
+                    onChange={(e) => { setTickerBgColor(e.target.value); setTickerDirty(true); }}
+                    className="h-8 w-8 cursor-pointer rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={tickerBgColor}
+                    onChange={(e) => { setTickerBgColor(e.target.value); setTickerDirty(true); }}
+                    className="w-20 rounded border border-gray-300 px-2 py-1 text-xs uppercase focus:border-primary-500 focus:outline-none"
+                    maxLength={7}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Couleur du texte</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={tickerTextColor}
+                    onChange={(e) => { setTickerTextColor(e.target.value); setTickerDirty(true); }}
+                    className="h-8 w-8 cursor-pointer rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={tickerTextColor}
+                    onChange={(e) => { setTickerTextColor(e.target.value); setTickerDirty(true); }}
+                    className="w-20 rounded border border-gray-300 px-2 py-1 text-xs uppercase focus:border-primary-500 focus:outline-none"
+                    maxLength={7}
+                  />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-500">Taille du texte</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={12}
+                    max={60}
+                    value={tickerFontSize}
+                    onChange={(e) => { setTickerFontSize(Number(e.target.value)); setTickerDirty(true); }}
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right text-xs text-gray-500">{tickerFontSize}px</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <p className="bg-white px-2 py-1 text-xs font-medium text-gray-400">Apercu</p>
+              <div
+                className="overflow-hidden"
+                style={{
+                  backgroundColor: tickerBgColor,
+                  height: `${Math.min(tickerHeight, 60)}px`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 12px',
+                }}
+              >
+                <span
+                  style={{
+                    color: tickerTextColor,
+                    fontSize: `${Math.min(tickerFontSize, 20)}px`,
+                    fontWeight: 'bold',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {ticker || 'Apercu du message defilant...'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tickerMsg && (
           <p className={`mt-1 text-xs ${tickerMsg.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
             {tickerMsg.text}
@@ -817,7 +1009,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
             onChange={(e) => setName(e.target.value)}
             placeholder="Nom du service"
             required
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            className="h-10 flex-1 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
           />
           <input
             type="text"
@@ -825,12 +1017,12 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
             onChange={(e) => setPrefix(e.target.value)}
             placeholder="Prefixe"
             maxLength={5}
-            className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            className="h-10 w-20 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
           />
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+            className="h-10 rounded-lg bg-primary-500 px-4 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
           >
             Ajouter
           </button>
@@ -845,39 +1037,35 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
             className={`rounded-xl bg-white p-4 shadow-sm ${!s.isActive ? 'opacity-50' : ''}`}
           >
             {editingId === s.id ? (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Nom du service"
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={editPrefix}
-                    onChange={(e) => setEditPrefix(e.target.value)}
-                    placeholder="Prefixe"
-                    maxLength={5}
-                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(s.id)}
-                    disabled={!editName.trim()}
-                    className="rounded-lg bg-primary-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
-                  >
-                    Enregistrer
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="rounded-lg bg-gray-100 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
-                  >
-                    Annuler
-                  </button>
-                </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nom du service"
+                  className="h-10 flex-1 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={editPrefix}
+                  onChange={(e) => setEditPrefix(e.target.value)}
+                  placeholder="Prefixe"
+                  maxLength={5}
+                  className="h-10 w-20 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
+                />
+                <button
+                  onClick={() => handleEdit(s.id)}
+                  disabled={!editName.trim()}
+                  className="h-10 rounded-lg bg-primary-500 px-4 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+                >
+                  Enregistrer
+                </button>
+                <button
+                  onClick={() => setEditingId(null)}
+                  className="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -904,13 +1092,13 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => startEdit(s)}
-                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                    className="h-8 rounded-lg bg-gray-100 px-3 text-xs font-medium text-gray-600 hover:bg-gray-200"
                   >
                     Modifier
                   </button>
                   <button
                     onClick={() => toggleCounters(s.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    className={`h-8 rounded-lg px-3 text-xs font-medium ${
                       expandedCounters === s.id
                         ? 'bg-primary-100 text-primary-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -920,7 +1108,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                   </button>
                   <button
                     onClick={() => toggleDisplay(s.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    className={`h-8 rounded-lg px-3 text-xs font-medium ${
                       expandedDisplay === s.id
                         ? 'bg-primary-100 text-primary-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -930,7 +1118,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                   </button>
                   <button
                     onClick={() => toggleLinks(s.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    className={`h-8 rounded-lg px-3 text-xs font-medium ${
                       expandedLinks === s.id
                         ? 'bg-primary-100 text-primary-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -940,7 +1128,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                   </button>
                   <button
                     onClick={() => toggleHours(s.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    className={`h-8 rounded-lg px-3 text-xs font-medium ${
                       expandedHours === s.id
                         ? 'bg-primary-100 text-primary-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -950,7 +1138,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                   </button>
                   <button
                     onClick={() => toggleActive(s.id, s.isActive)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                    className={`h-8 rounded-lg px-3 text-xs font-medium ${
                       s.isActive
                         ? 'bg-red-50 text-red-600 hover:bg-red-100'
                         : 'bg-green-50 text-green-600 hover:bg-green-100'
@@ -962,7 +1150,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleDelete(s.id)}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                        className="h-8 rounded-lg bg-red-600 px-3 text-xs font-medium text-white hover:bg-red-700"
                       >
                         Confirmer
                       </button>
@@ -971,7 +1159,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                           setDeleteConfirm(null);
                           setDeleteError(null);
                         }}
-                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                        className="h-8 rounded-lg bg-gray-100 px-3 text-xs font-medium text-gray-600 hover:bg-gray-200"
                       >
                         Annuler
                       </button>
@@ -982,7 +1170,7 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                         setDeleteConfirm(s.id);
                         setDeleteError(null);
                       }}
-                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                      className="h-8 rounded-lg bg-red-50 px-3 text-xs font-medium text-red-600 hover:bg-red-100"
                     >
                       Supprimer
                     </button>
@@ -1010,7 +1198,14 @@ export default function ServicesPanel({ serviceScope }: { serviceScope?: string 
                 initialFeedActive={s.feedActive}
                 initialTickerMessage={s.tickerMessage}
                 initialTickerActive={s.tickerActive}
+                initialTickerPosition={s.tickerPosition}
+                initialTickerHeight={s.tickerHeight}
+                initialTickerBgColor={s.tickerBgColor}
+                initialTickerTextColor={s.tickerTextColor}
+                initialTickerFontSize={s.tickerFontSize}
+                initialShowPreviousTickets={s.showPreviousTickets}
                 onUpdate={fetchServices}
+                service={s}
               />
             )}
 

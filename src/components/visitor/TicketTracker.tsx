@@ -26,27 +26,68 @@ export default function TicketTracker({
   const [showCelebration, setShowCelebration] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [counterLabel, setCounterLabel] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastRefreshRef = useRef(0);
 
   const isCurrent = ticket.status === 'SERVING';
   const isFinished = ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' || ticket.status === 'NO_SHOW';
 
   useEffect(() => {
-    audioRef.current = new Audio('/sounds/ding.wav');
+    const audio = new Audio('/sounds/ding.wav');
+    audio.volume = 1;
+    audio.preload = 'auto';
+    audioRef.current = audio;
     fetch('/api/logo').then((res) => {
       if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
         setLogoUrl('/api/logo');
       }
     }).catch(() => {});
+    return () => {
+      audio.pause();
+      audioRef.current = null;
+    };
   }, []);
 
   const playSound = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
-    }
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.volume = 1;
+    audio.play().catch(() => {
+      const fresh = new Audio('/sounds/ding.wav');
+      fresh.volume = 1;
+      fresh.play().catch(() => {});
+      audioRef.current = fresh;
+    });
   }, []);
+
+  function enableSound() {
+    const fresh = new Audio('/sounds/ding.wav');
+    fresh.volume = 1;
+    fresh.play()
+      .then(() => {
+        fresh.pause();
+        fresh.currentTime = 0;
+        audioRef.current = fresh;
+        setSoundEnabled(true);
+      })
+      .catch(() => {
+        const audio = audioRef.current;
+        if (audio) {
+          audio.currentTime = 0;
+          audio.volume = 1;
+          audio.play()
+            .then(() => {
+              audio.pause();
+              audio.currentTime = 0;
+              setSoundEnabled(true);
+            })
+            .catch(() => {});
+        }
+      });
+  }
 
   const refreshTicket = useCallback(async () => {
     try {
@@ -65,27 +106,37 @@ export default function TicketTracker({
       if (data?.counterLabel) setCounterLabel(data.counterLabel);
       playSound();
       setShowCelebration(true);
+      lastRefreshRef.current = Date.now();
       refreshTicket();
     } else if (event === 'ticket:completed' || event === 'ticket:no-show') {
+      lastRefreshRef.current = Date.now();
       refreshTicket();
     } else if (event === 'ticket:returned') {
       setShowCelebration(false);
       setCounterLabel(null);
+      lastRefreshRef.current = Date.now();
       refreshTicket();
     }
   }, [refreshTicket, playSound]));
 
   useEffect(() => {
-    if (ticket.status !== 'WAITING') return;
-    const interval = setInterval(refreshTicket, 15000);
+    const interval = setInterval(() => {
+      if (Date.now() - lastRefreshRef.current > 5000) {
+        refreshTicket();
+      }
+    }, 3000);
     return () => clearInterval(interval);
-  }, [ticket.status, refreshTicket]);
+  }, [refreshTicket]);
 
   useEffect(() => {
     if (isCurrent) {
       setShowCelebration(true);
     }
   }, [isCurrent]);
+
+  const handleCloseCelebration = useCallback(() => {
+    setShowCelebration(false);
+  }, []);
 
   async function handleLeave() {
     try {
@@ -126,7 +177,7 @@ export default function TicketTracker({
   // --- En cours d'appel ---
   if (isCurrent) {
     return (
-      <div className="flex min-h-svh flex-col bg-primary-700">
+      <div className="relative flex min-h-svh flex-col bg-primary-700">
         <div className="flex flex-1 flex-col items-center justify-center px-5">
           <p className="text-base font-semibold uppercase tracking-widest text-accent-400 sm:text-lg">
             C&apos;est votre tour
@@ -143,7 +194,7 @@ export default function TicketTracker({
 
         <CelebrationPopup
           visible={showCelebration}
-          onClose={() => setShowCelebration(false)}
+          onClose={handleCloseCelebration}
         />
       </div>
     );
@@ -194,13 +245,27 @@ export default function TicketTracker({
         </div>
       </div>
 
-      {/* Bouton quitter */}
-      <div className="flex flex-col items-center px-5 pb-6">
+      {/* Sound + Bouton quitter */}
+      <div className="flex flex-col items-center gap-3 px-5 pb-6">
+        {!soundEnabled && (
+          <button
+            onClick={enableSound}
+            className="flex items-center gap-2 rounded-xl bg-primary-50 px-5 py-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+            </svg>
+            Activer les notifications sonores
+          </button>
+        )}
         {!showLeaveConfirm ? (
           <button
             onClick={() => setShowLeaveConfirm(true)}
-            className="rounded-2xl px-8 py-3 text-sm font-medium text-gray-400 transition-colors hover:text-gray-500"
+            className="flex items-center gap-2 rounded-xl border border-primary-700 bg-transparent px-5 py-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-50"
           >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
             Quitter la file d&apos;attente
           </button>
         ) : (
@@ -226,7 +291,7 @@ export default function TicketTracker({
 
       <CelebrationPopup
         visible={showCelebration && isCurrent}
-        onClose={() => setShowCelebration(false)}
+        onClose={handleCloseCelebration}
       />
     </div>
   );

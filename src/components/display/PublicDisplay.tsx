@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { useServiceSocket } from '@/hooks/useSocket';
 
 function formatFrenchDate(dateStr: string): string {
@@ -57,6 +58,7 @@ interface PublicDisplayProps {
   initialTickerMessage: string | null;
   initialTickerConfig: TickerConfig;
   initialHasFeed: boolean;
+  initialShowPreviousTickets: boolean;
 }
 
 const WAIT_START = 8000;
@@ -69,6 +71,7 @@ export default function PublicDisplay({
   initialTickerMessage,
   initialTickerConfig,
   initialHasFeed,
+  initialShowPreviousTickets,
 }: PublicDisplayProps) {
   const [data, setData] = useState<DisplayData>(initialData);
   const [calling, setCalling] = useState(false);
@@ -84,11 +87,18 @@ export default function PublicDisplay({
   const [slideDuration, setSlideDuration] = useState(15000);
   const [progressKey, setProgressKey] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
+  const [showAllCalled, setShowAllCalled] = useState(false);
+  const [showPreviousTickets, setShowPreviousTickets] = useState(initialShowPreviousTickets);
+  const [feedActiveState, setFeedActiveState] = useState(initialHasFeed);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ticketCardRef = useRef<HTMLDivElement | null>(null);
+  const callingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const textRefs = useRef<(HTMLDivElement | null)[]>([]);
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
   const slideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastRefreshRef = useRef<number>(0);
+  const knownServingRef = useRef<Set<string>>(new Set());
   // Clock
   const [clockTime, setClockTime] = useState('');
   const [clockDate, setClockDate] = useState('');
@@ -128,26 +138,25 @@ export default function PublicDisplay({
       .catch(() => {});
   }, []);
 
-  // Load feed
-  useEffect(() => {
-    async function loadFeed() {
-      try {
-        const res = await fetch(`/api/feed?serviceId=${serviceId}`);
-        if (!res.ok) return;
-        const json = await res.json();
-        if (json.items && json.items.length > 0) {
-          setFeedItems(json.items);
-        } else {
-          setFeedItems(null);
-        }
-      } catch {
-        // No feed
+  const loadFeedNow = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/feed?serviceId=${serviceId}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.items && json.items.length > 0) {
+        setFeedItems(json.items);
+        setCurrentSlide(0);
+      } else {
+        setFeedItems(null);
       }
-    }
-    loadFeed();
-    const interval = setInterval(loadFeed, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    } catch {}
   }, [serviceId]);
+
+  useEffect(() => {
+    loadFeedNow();
+    const interval = setInterval(loadFeedNow, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [loadFeedNow]);
 
   // Refresh ticker
   const refreshTicker = useCallback(async () => {
@@ -156,6 +165,13 @@ export default function PublicDisplay({
       if (!res.ok) return;
       const json = await res.json();
       setTickerMessage(json.message ?? null);
+      if (json.showPreviousTickets !== undefined) {
+        setShowPreviousTickets(json.showPreviousTickets);
+      }
+      if (json.feedActive !== undefined) {
+        setFeedActiveState(json.feedActive);
+        if (!json.feedActive) setFeedItems(null);
+      }
       if (json.position || json.height || json.bgColor || json.textColor || json.fontSize) {
         setTickerConfig({
           position: json.position ?? 'bottom',
@@ -175,7 +191,6 @@ export default function PublicDisplay({
     return () => clearInterval(interval);
   }, [refreshTicker]);
 
-  // Sound
   const playNotificationSound = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -183,39 +198,73 @@ export default function PublicDisplay({
     }
   }, []);
 
-  // Data refresh
+  const triggerCalling = useCallback(() => {
+    if (callingTimerRef.current) clearTimeout(callingTimerRef.current);
+    setCalling(false);
+    requestAnimationFrame(() => {
+      setCalling(true);
+      playNotificationSound();
+      callingTimerRef.current = setTimeout(() => setCalling(false), 10000);
+    });
+  }, [playNotificationSound]);
+
   const refreshData = useCallback(async () => {
     try {
       const res = await fetch(`/api/display/${serviceId}`);
       if (!res.ok) return;
       const newData = await res.json();
-      setData(newData);
+
+      setData((prev) => {
+        knownServingRef.current = new Set(
+          (newData.servingTickets ?? []).map((t: ServingTicket) => t.displayCode)
+        );
+        if (newData.currentCode && newData.currentCode !== prev.currentCode) {
+          setCallingCode(newData.currentCode);
+          setCallingCounter(newData.currentCounter);
+          if (newData.currentCode) setLastCalledCode(newData.currentCode);
+          if (newData.currentCounter !== undefined) setLastCalledCounter(newData.currentCounter);
+          triggerCalling();
+        }
+        return newData;
+      });
     } catch {
       // Silent fail
     }
-  }, [serviceId]);
+  }, [serviceId, triggerCalling]);
 
   useServiceSocket(
     serviceId,
     useCallback((event: string, eventData: any) => {
       if (event === 'ticket:called') {
-        // Capture the called ticket info for the animation
         const code = eventData?.displayCode ?? null;
         const counter = eventData?.counterLabel ?? null;
-        setCallingCode(code);
-        setCallingCounter(counter);
+        const ticketId = eventData?.ticketId ?? null;
+        const isRecall = ticketId ? knownServingRef.current.has(ticketId) : false;
         if (code) setLastCalledCode(code);
         if (counter !== undefined) setLastCalledCounter(counter);
-        setCalling(true);
-        playNotificationSound();
-        setTimeout(() => setCalling(false), 30000);
+        if (!isRecall) {
+          setCallingCode(code);
+          setCallingCounter(counter);
+          triggerCalling();
+        }
       }
+      if (event === 'ticker:updated') {
+        refreshTicker();
+      }
+      if (event === 'feed:updated') {
+        loadFeedNow();
+      }
+      lastRefreshRef.current = Date.now();
       refreshData();
-    }, [refreshData, playNotificationSound])
+    }, [refreshData, triggerCalling, refreshTicker, loadFeedNow])
   );
 
   useEffect(() => {
-    const interval = setInterval(refreshData, 10000);
+    const interval = setInterval(() => {
+      if (Date.now() - lastRefreshRef.current > 5000) {
+        refreshData();
+      }
+    }, 3000);
     return () => clearInterval(interval);
   }, [refreshData]);
 
@@ -271,9 +320,15 @@ export default function PublicDisplay({
 
   function handleFullscreen() {
     document.documentElement.requestFullscreen?.();
+    if (audioRef.current) {
+      audioRef.current.play().then(() => {
+        audioRef.current!.pause();
+        audioRef.current!.currentTime = 0;
+      }).catch(() => {});
+    }
   }
 
-  const hasFeed = initialHasFeed || (feedItems && feedItems.length > 0);
+  const hasFeed = feedActiveState || (feedItems && feedItems.length > 0);
   const hasTicker = !!tickerMessage;
 
   return (
@@ -316,18 +371,68 @@ export default function PublicDisplay({
 
       {/* Main layout */}
       <div className="flex min-h-0 flex-1">
+        {/* Previous tickets column — LEFT side */}
+        {showPreviousTickets && data.previousTickets.length > 0 && (
+          <aside
+            className="flex flex-col bg-white"
+            style={{
+              width: '220px',
+              boxShadow: '5px 0 25px rgba(0, 0, 0, 0.08)',
+            }}
+          >
+            <div
+              className="flex items-center justify-center font-bold uppercase tracking-wide"
+              style={{
+                backgroundColor: '#006e46',
+                color: '#ffffff',
+                padding: '16px 12px',
+                fontSize: '0.85em',
+                letterSpacing: '1.5px',
+              }}
+            >
+              Appels precedents
+            </div>
+            <div className="flex flex-1 flex-col">
+              {data.previousTickets.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col items-center justify-center border-b border-gray-100"
+                  style={{ padding: '24px 16px' }}
+                >
+                  <span
+                    className="font-black leading-none"
+                    style={{ fontSize: '2.8em', color: '#006e46' }}
+                  >
+                    {t.displayCode}
+                  </span>
+                  {t.counterLabel && (
+                    <span
+                      className="mt-2 font-semibold"
+                      style={{ fontSize: '0.9em', color: '#888888' }}
+                    >
+                      {t.counterLabel}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
+
         {/* Ticket area */}
         <main className="relative flex flex-1 items-center justify-center p-10">
           <div
-            className={`flex flex-col items-center rounded-[20px] bg-white text-center transition-all duration-400 ${
-              calling
-                ? 'animate-wow-alert border-4 border-primary-700'
-                : 'border-4 border-transparent'
+            ref={ticketCardRef}
+            className={`flex flex-col items-center rounded-[20px] text-center ${
+              calling ? 'display-wow-alert border-4 border-primary-700' : 'border-4 border-transparent'
             }`}
             style={{
               padding: '60px 100px',
-              boxShadow: '0 15px 45px rgba(0,0,0,0.05)',
-              backgroundColor: calling ? '#f0fdf4' : '#ffffff',
+              boxShadow: calling
+                ? '0 0 60px 30px rgba(0, 110, 70, 0.3)'
+                : '0 15px 45px rgba(0,0,0,0.05)',
+              backgroundColor: calling ? '#006e46' : '#ffffff',
+              transition: 'background-color 0.3s, box-shadow 0.3s',
             }}
           >
             {(() => {
@@ -340,7 +445,7 @@ export default function PublicDisplay({
                   <>
                     <h2
                       className={`m-0 text-2xl font-semibold uppercase ${
-                        calling ? 'font-black text-primary-700' : 'text-gray-400'
+                        calling ? 'font-black text-white' : 'text-gray-400'
                       }`}
                       style={{ fontSize: '2em' }}
                     >
@@ -348,26 +453,47 @@ export default function PublicDisplay({
                     </h2>
                     <div
                       className={`my-5 font-black leading-none tracking-wider ${
-                        calling ? 'text-primary-700' : 'text-gray-900'
+                        calling ? 'text-white' : 'text-gray-900'
                       }`}
                       style={{
                         fontSize: '10em',
-                        textShadow: calling ? '0 4px 15px rgba(0, 110, 70, 0.3)' : 'none',
+                        textShadow: calling ? '0 4px 15px rgba(255, 255, 255, 0.3)' : 'none',
                       }}
                     >
                       {displayCode}
                     </div>
                     {displayCounter && (
-                      <p
-                        className={`m-0 font-bold ${
-                          calling ? 'text-gray-900' : 'text-primary-700'
-                        }`}
-                        style={{ fontSize: '3em' }}
-                      >
-                        {calling
-                          ? `Allez au ${displayCounter}`
-                          : displayCounter}
-                      </p>
+                      calling ? (
+                        <div className={`m-0 text-center`}>
+                          <p
+                            className="m-0 font-bold text-accent-400"
+                            style={{ fontSize: '2em' }}
+                          >
+                            Allez au Guichet
+                          </p>
+                          <p
+                            className="m-0 mt-1 font-black text-white"
+                            style={{ fontSize: '3em' }}
+                          >
+                            {displayCounter}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="m-0 text-center">
+                          <p
+                            className="m-0 font-semibold uppercase text-gray-400"
+                            style={{ fontSize: '1em', letterSpacing: '1px' }}
+                          >
+                            Guichet
+                          </p>
+                          <p
+                            className="m-0 font-bold text-primary-700"
+                            style={{ fontSize: '3em' }}
+                          >
+                            {displayCounter}
+                          </p>
+                        </div>
+                      )
                     )}
                   </>
                 );
@@ -392,35 +518,60 @@ export default function PublicDisplay({
             })()}
           </div>
 
-          {/* Bottom info: tickets en cours avec guichets + en attente */}
+          {/* Bottom info: appels en cours + en attente */}
           <div
-            className="absolute bottom-8 left-10 right-10 flex flex-wrap items-center justify-center gap-4"
+            className="absolute bottom-8 left-10 right-10 flex flex-col items-center gap-3"
             style={{ marginBottom: hasTicker && tickerConfig.position === 'bottom' ? `${tickerConfig.height}px` : '0' }}
           >
-            {data.servingTickets.map((t, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
-                <span className="text-2xl font-black text-primary-700">
-                  {t.displayCode}
-                </span>
-                {t.counterLabel && (
-                  <span className="text-sm font-semibold text-gray-500">
-                    {t.counterLabel}
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {(() => {
+                const currentDisplayCode = data.currentCode ?? lastCalledCode;
+                const filtered = data.servingTickets.filter(
+                  (t) => !currentDisplayCode || t.displayCode !== currentDisplayCode
+                );
+                const shown = showAllCalled ? filtered : filtered.slice(0, 2);
+                return shown.map((t, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
+                    <span className="text-2xl font-black text-primary-700">
+                      {t.displayCode}
+                    </span>
+                    {t.counterLabel && (
+                      <span className="text-sm font-semibold text-gray-500">
+                        {t.counterLabel}
+                      </span>
+                    )}
+                  </div>
+                ));
+              })()}
+              {data.waitingCount > 0 && (
+                <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
+                  <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+                    En attente
                   </span>
-                )}
-              </div>
-            ))}
-            {data.waitingCount > 0 && (
-              <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
-                <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-                  En attente
-                </span>
-                <span className="text-2xl font-black text-orange-500">
-                  {data.waitingCount}
-                </span>
-              </div>
+                  <span className="text-2xl font-black text-orange-500">
+                    {data.waitingCount}
+                  </span>
+                </div>
+              )}
+            </div>
+            {(() => {
+              const c = data.currentCode ?? lastCalledCode;
+              const n = data.servingTickets.filter((t) => !c || t.displayCode !== c).length;
+              return n > 2;
+            })() && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowAllCalled((v) => !v); }}
+                className="rounded-full bg-white/70 px-4 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-white hover:text-gray-700"
+              >
+                {showAllCalled ? 'Voir moins' : `+${(() => {
+                  const c = data.currentCode ?? lastCalledCode;
+                  return data.servingTickets.filter((t) => !c || t.displayCode !== c).length - 2;
+                })()} autres`}
+              </button>
             )}
           </div>
         </main>
+
 
         {/* News sidebar */}
         {hasFeed && (
@@ -529,7 +680,7 @@ export default function PublicDisplay({
                               color: '#333333',
                               paddingBottom: '60px',
                             }}
-                            dangerouslySetInnerHTML={{ __html: item.content }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.content ?? '') }}
                           />
                         </div>
                       )}

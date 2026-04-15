@@ -124,12 +124,17 @@ export default function AddTicketModal({
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+              setPhone(raw);
+            }}
             required
             autoComplete="tel"
-            inputMode="tel"
+            inputMode="numeric"
+            pattern="0[67][0-9]{8}"
+            maxLength={10}
             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-lg tracking-wider text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            placeholder="06 12 34 56 78"
+            placeholder="0612345678"
           />
 
           <div className="flex gap-3">

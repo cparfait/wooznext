@@ -19,6 +19,9 @@ export async function GET(
         tickerBgColor: true,
         tickerTextColor: true,
         tickerFontSize: true,
+        showPreviousTickets: true,
+        feedActive: true,
+        feedUrl: true,
       },
     });
 
@@ -29,6 +32,8 @@ export async function GET(
       bgColor: service?.tickerBgColor ?? '#dc2626',
       textColor: service?.tickerTextColor ?? '#ffffff',
       fontSize: service?.tickerFontSize ?? 18,
+      showPreviousTickets: service?.showPreviousTickets ?? false,
+      feedActive: !!(service?.feedUrl && service.feedActive),
     });
   } catch {
     return NextResponse.json({ message: null });

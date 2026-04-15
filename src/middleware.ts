@@ -21,5 +21,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ['/agent((?!/login).)*', '/admin/:path*'],
+  matcher: ['/agent((?!/login).)*', '/admin/:path*', '/admin'],
 };

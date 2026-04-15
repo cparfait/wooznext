@@ -39,6 +39,7 @@ model Service {
   tickerBgColor   String   @default("#dc2626") @map("ticker_bg_color") // couleur de fond
   tickerTextColor String   @default("#ffffff") @map("ticker_text_color") // couleur du texte
   tickerFontSize  Int      @default(18) @map("ticker_font_size") // taille du texte en px
+  showPreviousTickets Boolean @default(true) @map("show_previous_tickets") // afficher colonne tickets precedents sur ecran public
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -53,16 +54,17 @@ model Service {
 
 /// Agent de la collectivité (opérateur de guichet)
 model Agent {
-  id           String   @id @default(cuid())
-  firstName    String   @map("first_name")
-  lastName     String   @map("last_name")
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role     @default(AGENT)
-  serviceId    String?  @map("service_id")
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  role          Role     @default(AGENT)
+  serviceId     String?  @map("service_id")
+  isActive      Boolean  @default(true)
+  isAnonymized  Boolean  @default(false) @map("is_anonymized")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   service  Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   counters Counter[]
@@ -95,6 +97,8 @@ model Counter {
   agent         Agent?  @relation(fields: [agentId], references: [id])
   currentTicket Ticket? @relation("CurrentlyServing", fields: [currentTicketId], references: [id])
 
+  @@index([agentId])
+  @@index([serviceId])
   @@map("counters")
 }
 
@@ -108,6 +112,8 @@ model Ticket {
   visitorId   String       @map("visitor_id")
   calledById             String?      @map("called_by_id")
   calledFromCounterLabel String?      @map("called_from_counter_label")
+  returnedToQueue        Boolean      @default(false) @map("returned_to_queue")
+  returnReason           String?      @map("return_reason")
   createdAt              DateTime     @default(now())
   calledAt               DateTime?    @map("called_at")
   completedAt            DateTime?    @map("completed_at")
@@ -118,8 +124,11 @@ model Ticket {
   counter  Counter? @relation("CurrentlyServing")
 
   @@index([serviceId, status])
+  @@index([serviceId, status, createdAt])
   @@index([visitorId, status])
   @@index([createdAt])
+  @@index([calledById])
+  @@index([completedAt])
   @@map("tickets")
 }
 

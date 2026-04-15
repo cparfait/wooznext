@@ -18,19 +18,21 @@ export async function POST() {
       );
     }
 
-    const ticket = await callNextTicket(serviceId, session.user.id);
+    const result = await callNextTicket(serviceId, session.user.id);
 
-    if (!ticket) {
+    if (!result) {
       return NextResponse.json(
         { error: 'Aucun visiteur en attente' },
         { status: 404 }
       );
     }
 
-    emitTicketCalled(serviceId, ticket.id, ticket.displayCode, ticket.calledFromCounterLabel ?? undefined);
-    emitQueueUpdate(serviceId);
+    if (result.ticket) {
+      emitTicketCalled(serviceId, result.ticket.id, result.ticket.displayCode, result.ticket.calledFromCounterLabel ?? undefined, result.ticket.returnReason ?? undefined);
+      emitQueueUpdate(serviceId);
+    }
 
-    return NextResponse.json({ ticket });
+    return NextResponse.json({ ticket: result.ticket });
   } catch (error) {
     console.error('Error calling next ticket:', error);
     return NextResponse.json(

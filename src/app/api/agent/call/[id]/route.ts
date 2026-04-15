@@ -14,12 +14,30 @@ export async function POST(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const ticket = await callTicketById(id, session.user.id);
+    const result = await callTicketById(id, session.user.id, session.user.serviceId!);
 
-    emitTicketCalled(ticket.serviceId, ticket.id, ticket.displayCode, ticket.calledFromCounterLabel ?? undefined);
-    emitQueueUpdate(ticket.serviceId);
+    if (result === 'FORBIDDEN') {
+      return NextResponse.json(
+        { error: 'Ce ticket n\'appartient pas a votre service' },
+        { status: 403 }
+      );
+    }
 
-    return NextResponse.json({ ticket });
+    if (!result) {
+      return NextResponse.json(
+        { error: 'Ticket introuvable ou deja appele' },
+        { status: 404 }
+      );
+    }
+
+    if (!result.ticket) {
+      return NextResponse.json({ completedTickets: result.completedTickets });
+    }
+
+    emitTicketCalled(result.ticket.serviceId, result.ticket.id, result.ticket.displayCode, result.ticket.calledFromCounterLabel ?? undefined, result.ticket.returnReason ?? undefined);
+    emitQueueUpdate(result.ticket.serviceId);
+
+    return NextResponse.json({ ticket: result.ticket });
   } catch (error) {
     console.error('Error calling ticket:', error);
     return NextResponse.json(

@@ -38,7 +38,7 @@ export async function GET() {
         : {};
 
     const agents = await prisma.agent.findMany({
-      where: serviceFilter,
+      where: { ...serviceFilter, isAnonymized: false },
       orderBy: { lastName: 'asc' },
       select: {
         id: true,
@@ -47,6 +47,7 @@ export async function GET() {
         email: true,
         role: true,
         isActive: true,
+        isAnonymized: true,
         serviceId: true,
         service: { select: { name: true } },
         createdAt: true,

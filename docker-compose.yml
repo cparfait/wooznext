@@ -24,6 +24,11 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
     environment:
       DATABASE_URL: postgresql://wooznext:${DB_PASSWORD:-wooznext_secret}@db:5432/wooznext
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}

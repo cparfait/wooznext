@@ -7,9 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 const createTicketSchema = z.object({
   phone: z
     .string()
-    .min(10, 'Numéro de téléphone invalide')
-    .max(15)
-    .regex(/^[0-9+\s-]+$/, 'Format de numéro invalide'),
+    .regex(/^0[67][0-9]{8}$/, 'Numéro de téléphone invalide (06 ou 07, 10 chiffres)'),
   serviceId: z.string().min(1, 'Service requis'),
 });
 

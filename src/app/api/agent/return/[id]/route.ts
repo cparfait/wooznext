@@ -14,7 +14,26 @@ export async function POST(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const ticket = await returnTicketToQueue(id);
+    let reason: string | undefined;
+    try {
+      const body = await req.json();
+      reason = body.reason;
+    } catch {
+      // no body
+    }
+
+    const ticket = await returnTicketToQueue(id, reason);
+
+    if (!ticket) {
+      return NextResponse.json(
+        { error: 'Ticket introuvable ou pas en cours de service' },
+        { status: 404 }
+      );
+    }
+
+    if (ticket.serviceId !== session.user.serviceId) {
+      return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
+    }
 
     emitTicketReturned(ticket.serviceId, ticket.id);
 

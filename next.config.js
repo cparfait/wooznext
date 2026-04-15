@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   {
@@ -17,7 +19,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self'${isProd ? "" : " 'unsafe-inline' 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
@@ -31,8 +33,7 @@ const securityHeaders = [
 
 const nextConfig = {
   output: 'standalone',
-  // Fix "multiple lockfiles" warning when project is nested inside a parent
-  // directory that also has a package-lock.json (e.g. Laragon www folder)
+  poweredByHeader: false,
   outputFileTracingRoot: require('path').join(__dirname),
   allowedDevOrigins: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   async headers() {
@@ -40,6 +41,18 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: securityHeaders,
+      },
+      {
+        source: '/sounds/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/api/logo',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=300' },
+        ],
       },
     ];
   },

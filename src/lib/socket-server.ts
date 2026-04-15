@@ -1,18 +1,22 @@
 import { Server as SocketIOServer } from 'socket.io';
 
-let io: SocketIOServer | null = null;
+const GLOBAL_KEY = '__wooznext_socketio__' as const;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __wooznext_socketio__: SocketIOServer | undefined;
+}
 
 export function setSocketIO(server: SocketIOServer): void {
-  io = server;
+  globalThis[GLOBAL_KEY] = server;
 }
 
-/** Retourne l'instance Socket.IO. Lève une erreur si non initialisée. */
 export function getSocketIO(): SocketIOServer {
-  if (!io) throw new Error('Socket.IO not initialized');
-  return io;
+  const instance = globalThis[GLOBAL_KEY];
+  if (!instance) throw new Error('Socket.IO not initialized');
+  return instance;
 }
 
-/** Retourne l'instance Socket.IO ou null si non encore initialisée (ex: pendant le build). */
 export function getSocketIOOrNull(): SocketIOServer | null {
-  return io;
+  return globalThis[GLOBAL_KEY] ?? null;
 }

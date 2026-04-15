@@ -11,15 +11,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('agentId') || undefined;
 
-    // AGENT role is scoped to their own service only
     const serviceId =
       session.user.role === 'AGENT'
         ? (session.user.serviceId ?? undefined)
         : (searchParams.get('serviceId') || undefined);
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
+    const dayOfWeekParam = searchParams.get('dayOfWeek');
+    const timeFromParam = searchParams.get('timeFrom');
+    const timeToParam = searchParams.get('timeTo');
 
-    // Date range
     let dateFrom: Date;
     let dateTo: Date;
 
@@ -39,166 +40,151 @@ export async function GET(request: NextRequest) {
       dateTo.setHours(23, 59, 59, 999);
     }
 
-    const dateFilter = { gte: dateFrom, lte: dateTo };
+    const dayOfWeek = dayOfWeekParam ? parseInt(dayOfWeekParam, 10) : undefined;
+    const timeFrom = timeFromParam || undefined;
+    const timeTo = timeToParam || undefined;
+
+    const baseWhereParts: string[] = [
+      `"createdAt" >= '${dateFrom.toISOString()}'`,
+      `"createdAt" <= '${dateTo.toISOString()}'`,
+    ];
+    if (serviceId) baseWhereParts.push(`"service_id" = '${serviceId}'`);
+    if (agentId) baseWhereParts.push(`"called_by_id" = '${agentId}'`);
+
+    const baseWhere = baseWhereParts.join(' AND ');
+
+    const dayWhere = dayOfWeek !== undefined
+      ? ` AND EXTRACT(DOW FROM "createdAt") = ${dayOfWeek}`
+      : '';
+
+    const timeWhereParts: string[] = [];
+    if (timeFrom) {
+      const [h, m] = timeFrom.split(':').map(Number);
+      timeWhereParts.push(`(EXTRACT(HOUR FROM "createdAt") * 60 + EXTRACT(MINUTE FROM "createdAt")) >= ${h * 60 + m}`);
+    }
+    if (timeTo) {
+      const [h, m] = timeTo.split(':').map(Number);
+      timeWhereParts.push(`(EXTRACT(HOUR FROM "createdAt") * 60 + EXTRACT(MINUTE FROM "createdAt")) <= ${h * 60 + m}`);
+    }
+    const timeWhere = timeWhereParts.length > 0 ? ` AND ${timeWhereParts.join(' AND ')}` : '';
+
+    const filterSuffix = dayWhere + timeWhere;
 
     const [
-      totalToday,
-      completedToday,
-      noShowToday,
+      totalResult,
+      completedResult,
+      noShowResult,
+      avgResult,
       waitingNow,
       servingNow,
-      avgServiceTime,
     ] = await Promise.all([
+      prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+        `SELECT COUNT(*)::int as count FROM tickets WHERE ${baseWhere}${filterSuffix}`
+      ),
+      prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+        `SELECT COUNT(*)::int as count FROM tickets WHERE status = 'COMPLETED' AND ${baseWhere.replace(/"createdAt"/g, '"completed_at"')}${filterSuffix}`
+      ),
+      prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+        `SELECT COUNT(*)::int as count FROM tickets WHERE status = 'NO_SHOW' AND ${baseWhere.replace(/"createdAt"/g, '"completed_at"')}${filterSuffix}`
+      ),
+      prisma.$queryRawUnsafe<Array<{ avg_seconds: number | null }>>(
+        `SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - called_at))), 0)::int as avg_seconds
+         FROM tickets
+         WHERE status = 'COMPLETED' AND called_at IS NOT NULL
+         AND completed_at >= '${dateFrom.toISOString()}' AND completed_at <= '${dateTo.toISOString()}'
+         ${serviceId ? `AND service_id = '${serviceId}'` : ''}
+         ${agentId ? `AND called_by_id = '${agentId}'` : ''}
+         ${filterSuffix.replace(/"createdAt"/g, '"created_at"')}`
+      ),
       prisma.ticket.count({
-        where: {
-          createdAt: dateFilter,
-          ...(serviceId ? { serviceId } : {}),
-          ...(agentId ? { calledById: agentId } : {}),
-        },
+        where: { status: TicketStatus.WAITING, ...(serviceId ? { serviceId } : {}) },
       }),
       prisma.ticket.count({
-        where: {
-          status: TicketStatus.COMPLETED,
-          completedAt: dateFilter,
-          ...(serviceId ? { serviceId } : {}),
-          ...(agentId ? { calledById: agentId } : {}),
-        },
-      }),
-      prisma.ticket.count({
-        where: {
-          status: TicketStatus.NO_SHOW,
-          completedAt: dateFilter,
-          ...(serviceId ? { serviceId } : {}),
-          ...(agentId ? { calledById: agentId } : {}),
-        },
-      }),
-      prisma.ticket.count({
-        where: {
-          status: TicketStatus.WAITING,
-          ...(serviceId ? { serviceId } : {}),
-        },
-      }),
-      prisma.ticket.count({
-        where: {
-          status: TicketStatus.SERVING,
-          ...(serviceId ? { serviceId } : {}),
-          ...(agentId ? { calledById: agentId } : {}),
-        },
-      }),
-      prisma.ticket.findMany({
-        where: {
-          status: TicketStatus.COMPLETED,
-          calledAt: { not: null },
-          completedAt: dateFilter,
-          ...(serviceId ? { serviceId } : {}),
-          ...(agentId ? { calledById: agentId } : {}),
-        },
-        select: { calledAt: true, completedAt: true },
+        where: { status: TicketStatus.SERVING, ...(serviceId ? { serviceId } : {}), ...(agentId ? { calledById: agentId } : {}) },
       }),
     ]);
 
-    // Calculate average service time in seconds
-    let avgSeconds = 0;
-    if (avgServiceTime.length > 0) {
-      const totalSeconds = avgServiceTime.reduce((sum, t) => {
-        if (t.calledAt && t.completedAt) {
-          return sum + (t.completedAt.getTime() - t.calledAt.getTime()) / 1000;
-        }
-        return sum;
-      }, 0);
-      avgSeconds = Math.round(totalSeconds / avgServiceTime.length);
+    const totalToday = Number(totalResult[0]?.count ?? 0);
+    const completedToday = Number(completedResult[0]?.count ?? 0);
+    const noShowToday = Number(noShowResult[0]?.count ?? 0);
+    const avgServiceTimeSeconds = Number(avgResult[0]?.avg_seconds ?? 0);
+
+    const serviceFilter = serviceId ? `AND t.service_id = '${serviceId}'` : '';
+    const agentFilter = agentId ? `AND t.called_by_id = '${agentId}'` : '';
+
+    const perService = await prisma.$queryRawUnsafe<Array<{ id: string; name: string; total: bigint; completed: bigint; waiting: bigint }>>(
+      `SELECT s.id, s.name,
+        COUNT(t.id)::int as total,
+        COUNT(CASE WHEN t.status = 'COMPLETED' THEN 1 END)::int as completed,
+        COUNT(CASE WHEN t.status = 'WAITING' THEN 1 END)::int as waiting
+       FROM services s
+       LEFT JOIN tickets t ON t.service_id = s.id
+         AND t."createdAt" >= '${dateFrom.toISOString()}' AND t."createdAt" <= '${dateTo.toISOString()}'
+         ${agentFilter} ${dayWhere} ${timeWhere.replace(/"createdAt"/g, 't."createdAt"')}
+       WHERE s."isActive" = true ${serviceId ? `AND s.id = '${serviceId}'` : ''}
+       GROUP BY s.id, s.name
+       HAVING COUNT(t.id) > 0
+       ORDER BY s.name`
+    );
+
+    const perAgent = await prisma.$queryRawUnsafe<Array<{ id: string; first_name: string; last_name: string; completed: bigint; no_show: bigint; avg_seconds: number | null }>>(
+      `SELECT a.id, a.first_name, a.last_name,
+        COUNT(CASE WHEN t.status = 'COMPLETED' THEN 1 END)::int as completed,
+        COUNT(CASE WHEN t.status = 'NO_SHOW' THEN 1 END)::int as no_show,
+        COALESCE(AVG(CASE WHEN t.status = 'COMPLETED' AND t.called_at IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (t.completed_at - t.called_at)) END), 0)::int as avg_seconds
+       FROM agents a
+       JOIN tickets t ON t.called_by_id = a.id
+       WHERE t.completed_at >= '${dateFrom.toISOString()}' AND t.completed_at <= '${dateTo.toISOString()}'
+         AND t.status IN ('COMPLETED', 'NO_SHOW')
+         ${serviceFilter} ${agentFilter}
+         ${dayWhere.replace(/"createdAt"/g, 't."createdAt"')} ${timeWhere.replace(/"createdAt"/g, 't."createdAt"')}
+       GROUP BY a.id, a.first_name, a.last_name
+       ORDER BY a.first_name, a.last_name`
+    );
+
+    const isToday = dateFrom.toDateString() === dateTo.toDateString();
+    const isFilteredByDay = dayOfWeek !== undefined;
+
+    let chartByHour: { label: string; total: number; completed: number; noShow: number }[] = [];
+    let chartByDayOfWeek: { label: string; total: number; completed: number; noShow: number }[] = [];
+
+    if (isToday || isFilteredByDay) {
+      const hourData = await prisma.$queryRawUnsafe<Array<{ hour: number; total: bigint; completed: bigint; no_show: bigint }>>(
+        `SELECT EXTRACT(HOUR FROM "createdAt")::int as hour,
+          COUNT(*)::int as total,
+          COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END)::int as completed,
+          COUNT(CASE WHEN status = 'NO_SHOW' THEN 1 END)::int as no_show
+         FROM tickets
+         WHERE ${baseWhere} ${filterSuffix}
+         GROUP BY hour ORDER BY hour`
+      );
+      chartByHour = hourData.map((r) => ({
+        label: `${String(r.hour).padStart(2, '0')}h`,
+        total: Number(r.total),
+        completed: Number(r.completed),
+        noShow: Number(r.no_show),
+      }));
     }
 
-    // Per-service stats
-    const services = await prisma.service.findMany({
-      where: { isActive: true, ...(serviceId ? { id: serviceId } : {}) },
-      select: {
-        id: true,
-        name: true,
-        tickets: {
-          where: {
-            createdAt: dateFilter,
-            ...(agentId ? { calledById: agentId } : {}),
-          },
-          select: { status: true },
-        },
-      },
-    });
-
-    const perService = services.map((s) => ({
-      id: s.id,
-      name: s.name,
-      total: s.tickets.length,
-      completed: s.tickets.filter((t) => t.status === TicketStatus.COMPLETED).length,
-      waiting: s.tickets.filter((t) => t.status === TicketStatus.WAITING).length,
-    }));
-
-    // Per-agent stats
-    const agentTickets = await prisma.ticket.findMany({
-      where: {
-        completedAt: dateFilter,
-        status: { in: [TicketStatus.COMPLETED, TicketStatus.NO_SHOW] },
-        calledById: agentId ? agentId : { not: null },
-        ...(serviceId ? { serviceId } : {}),
-      },
-      select: {
-        status: true,
-        calledAt: true,
-        completedAt: true,
-        calledById: true,
-        calledBy: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
-    });
-
-    // Group by agent
-    const agentMap = new Map<string, {
-      id: string;
-      firstName: string;
-      lastName: string;
-      completed: number;
-      noShow: number;
-      totalServiceSeconds: number;
-      completedWithTime: number;
-    }>();
-
-    for (const t of agentTickets) {
-      if (!t.calledById || !t.calledBy) continue;
-      let entry = agentMap.get(t.calledById);
-      if (!entry) {
-        entry = {
-          id: t.calledBy.id,
-          firstName: t.calledBy.firstName,
-          lastName: t.calledBy.lastName,
-          completed: 0,
-          noShow: 0,
-          totalServiceSeconds: 0,
-          completedWithTime: 0,
-        };
-        agentMap.set(t.calledById, entry);
-      }
-
-      if (t.status === TicketStatus.COMPLETED) {
-        entry.completed++;
-        if (t.calledAt && t.completedAt) {
-          entry.totalServiceSeconds += (t.completedAt.getTime() - t.calledAt.getTime()) / 1000;
-          entry.completedWithTime++;
-        }
-      } else if (t.status === TicketStatus.NO_SHOW) {
-        entry.noShow++;
-      }
+    if (!isToday || isFilteredByDay) {
+      const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      const dowData = await prisma.$queryRawUnsafe<Array<{ dow: number; total: bigint; completed: bigint; no_show: bigint }>>(
+        `SELECT EXTRACT(DOW FROM "createdAt")::int as dow,
+          COUNT(*)::int as total,
+          COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END)::int as completed,
+          COUNT(CASE WHEN status = 'NO_SHOW' THEN 1 END)::int as no_show
+         FROM tickets
+         WHERE ${baseWhere}
+         GROUP BY dow ORDER BY dow`
+      );
+      chartByDayOfWeek = dowData.map((r) => ({
+        label: days[r.dow] ?? String(r.dow),
+        total: Number(r.total),
+        completed: Number(r.completed),
+        noShow: Number(r.no_show),
+      }));
     }
-
-    const perAgent = Array.from(agentMap.values()).map((a) => ({
-      id: a.id,
-      name: `${a.firstName} ${a.lastName}`,
-      completed: a.completed,
-      noShow: a.noShow,
-      avgServiceTimeSeconds: a.completedWithTime > 0
-        ? Math.round(a.totalServiceSeconds / a.completedWithTime)
-        : 0,
-    }));
 
     return NextResponse.json({
       totalToday,
@@ -206,9 +192,23 @@ export async function GET(request: NextRequest) {
       noShowToday,
       waitingNow,
       servingNow,
-      avgServiceTimeSeconds: avgSeconds,
-      perService,
-      perAgent,
+      avgServiceTimeSeconds,
+      perService: perService.map((s) => ({
+        id: s.id,
+        name: s.name,
+        total: Number(s.total),
+        completed: Number(s.completed),
+        waiting: Number(s.waiting),
+      })),
+      perAgent: perAgent.map((a) => ({
+        id: a.id,
+        name: `${a.first_name} ${a.last_name}`,
+        completed: Number(a.completed),
+        noShow: Number(a.no_show),
+        avgServiceTimeSeconds: Number(a.avg_seconds ?? 0),
+      })),
+      chartByHour,
+      chartByDayOfWeek,
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

@@ -27,6 +27,17 @@ export async function POST(req: NextRequest) {
 
     const ticket = await completeTicket(parsed.data.ticketId);
 
+    if (!ticket) {
+      return NextResponse.json(
+        { error: 'Ticket introuvable ou pas en cours de service' },
+        { status: 404 }
+      );
+    }
+
+    if (ticket.serviceId !== session.user.serviceId) {
+      return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
+    }
+
     emitTicketCompleted(ticket.serviceId, ticket.id);
 
     return NextResponse.json({ ticket });

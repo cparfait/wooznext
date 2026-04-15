@@ -112,6 +112,13 @@ npm run db:seed
 
 > **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee. Si Prisma en propose une, verifiez qu'elle correspond a un vrai changement de schema avant de valider.
 
+Apres un `git pull` qui modifie `prisma/schema.prisma`, pensez a :
+
+```powershell
+npx prisma generate
+npx prisma migrate dev
+```
+
 Si vous obtenez une erreur SSL :
 
 ```powershell
@@ -206,6 +213,13 @@ npm run db:seed
 ```
 
 > **Important** : ne jamais laisser `npx prisma migrate dev` creer une migration locale non commitee. Si Prisma en propose une, verifiez qu'elle correspond a un vrai changement de schema avant de valider.
+
+Apres un `git pull` qui modifie `prisma/schema.prisma`, pensez a :
+
+```bash
+npx prisma generate
+npx prisma migrate dev
+```
 
 #### 7. Lancer l'application
 
@@ -332,7 +346,17 @@ PHONE_PEPPER=pepper_genere_avec_openssl
 docker compose up -d --build
 ```
 
-Cela demarre PostgreSQL + l'application. Les migrations s'appliquent automatiquement au demarrage.
+Cela demarre PostgreSQL + l'application. Les migrations s'appliquent automatiquement au demarrage via `npx prisma migrate deploy`.
+
+L'application est configuree avec les optimisations production suivantes :
+- Index de base de donnees optimises pour les requetes frequentes
+- Arret propre (graceful shutdown) : les connexions Socket.IO et Prisma sont fermees proprement a l'arret du conteneur
+- Limites de ressources Docker (512 Mo RAM, 1 CPU)
+- Limite de 20 connexions Socket.IO par IP
+- CORS Socket.IO restreint au domaine de production (`NEXTAUTH_URL`)
+- En-tete `X-Powered-By` supprime
+- Cache immutable sur les fichiers statiques (`/sounds/*`)
+- CSP sans `unsafe-eval` en production
 
 ### 4. Verifier
 
@@ -341,23 +365,36 @@ docker compose ps          # Etat des conteneurs
 docker compose logs -f app # Logs de l'application
 ```
 
-L'application est accessible sur le port **3000**. Configurez un reverse proxy (Caddy, Traefik ou Nginx) pour le HTTPS.
+L'application est accessible sur le port **3000**. Configurez un reverse proxy pour le HTTPS.
 
-### Exemple avec Caddy (HTTPS automatique)
+### Exemple avec Nginx Proxy Manager
 
-Installez Caddy sur le VPS puis creez `/etc/caddy/Caddyfile` :
-
-```
-votre-domaine.fr {
-    reverse_proxy localhost:3000
-}
-```
+1. Installez Nginx Proxy Manager sur le VPS :
 
 ```bash
-sudo systemctl restart caddy
+docker run -d \
+  --name npm \
+  --restart unless-stopped \
+  -p 80:80 \
+  -p 443:443 \
+  -p 81:81 \
+  -v npm_data:/data \
+  -v npm_letsencrypt:/etc/letsencrypt \
+  jc21/nginx-proxy-manager:latest
 ```
 
-Caddy obtient automatiquement un certificat Let's Encrypt.
+2. Accedez a l'interface d'administration sur `http://votre-ip:81` (identifiants par defaut : `admin@example.com` / `changeme`)
+
+3. Ajoutez un **Proxy Host** :
+   - **Domain Names** : `votre-domaine.fr`
+   - **Scheme** : `http`
+   - **Forward Hostname/IP** : `host.docker.internal` (ou l'IP du conteneur app)
+   - **Forward Port** : `3000`
+   - **Websockets Support** : **coche** (requis pour Socket.IO)
+   - **Block Common Exploits** : coche
+   - Onglet **SSL** : activez SSL, choisissez "Request a new SSL Certificate" via Let's Encrypt, cochez "Force SSL" et "HTTP/2 Support"
+
+> **Important** : l'option **Websockets Support** doit etre activee pour que les mises a jour temps reel (Socket.IO) fonctionnent.
 
 ## Depannage
 
@@ -380,7 +417,8 @@ Puis relancez `npx prisma migrate reset`.
 ### Regenerer le client Prisma apres un changement de schema
 
 ```bash
-npx prisma generate
+npx prisma generate        # Regenerer le client
+npx prisma migrate dev     # Appliquer les nouvelles migrations
 ```
 
 A faire systematiquement apres un `git pull` qui modifie `prisma/schema.prisma`.

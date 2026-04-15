@@ -2,9 +2,6 @@ import { prisma } from '@/lib/prisma';
 import { TicketStatus } from '@prisma/client';
 import { formatTicketNumber, hashPhone } from '@/lib/utils';
 
-/**
- * Find an active ticket (WAITING or SERVING) for a given phone number.
- */
 export async function findActiveTicketByPhone(phone: string) {
   const phoneHash = hashPhone(phone);
   return prisma.ticket.findFirst({
@@ -12,103 +9,127 @@ export async function findActiveTicketByPhone(phone: string) {
       visitor: { phone: phoneHash },
       status: { in: [TicketStatus.WAITING, TicketStatus.SERVING] },
     },
-    include: {
-      service: true,
-      visitor: true,
-    },
-  });
-}
-
-/**
- * Get the next ticket number for a service on a given day.
- * Uses an atomic transaction to prevent race conditions.
- */
-async function getNextTicketNumber(serviceId: string): Promise<number> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const sequence = await prisma.dailySequence.upsert({
-    where: {
-      serviceId_date: {
-        serviceId,
-        date: today,
-      },
-    },
-    create: {
-      serviceId,
-      date: today,
-      lastNumber: 1,
-    },
-    update: {
-      lastNumber: { increment: 1 },
-    },
-  });
-
-  return sequence.lastNumber;
-}
-
-/**
- * Create a new ticket for a visitor.
- * Anti-duplicate: if the phone already has an active ticket, return it.
- */
-export async function createTicket(phone: string, serviceId: string) {
-  // Check for existing active ticket
-  const existing = await findActiveTicketByPhone(phone);
-  if (existing) {
-    return { ticket: existing, isExisting: true };
-  }
-
-  // Get or create visitor (phone stored as hash for RGPD compliance)
-  const phoneHash = hashPhone(phone);
-  const visitor = await prisma.visitor.upsert({
-    where: { phone: phoneHash },
-    create: { phone: phoneHash },
-    update: {},
-  });
-
-  // Get service for prefix
-  const service = await prisma.service.findUniqueOrThrow({
-    where: { id: serviceId },
-  });
-
-  // Get next number atomically
-  const number = await getNextTicketNumber(serviceId);
-  const displayCode = formatTicketNumber(number, service.prefix || undefined);
-
-  // Create ticket
-  const ticket = await prisma.ticket.create({
-    data: {
-      number,
-      displayCode,
-      serviceId,
-      visitorId: visitor.id,
-    },
-    include: {
-      service: true,
-      visitor: true,
-    },
-  });
-
-  return { ticket, isExisting: false };
-}
-
-/**
- * Get a ticket by ID with all relations.
- */
-export async function getTicketById(id: string) {
-  return prisma.ticket.findUnique({
-    where: { id },
-    include: {
-      service: true,
-      visitor: true,
+    select: {
+      id: true,
+      number: true,
+      displayCode: true,
+      status: true,
+      serviceId: true,
+      visitorId: true,
+      createdAt: true,
+      calledAt: true,
+      completedAt: true,
+      calledById: true,
+      calledFromCounterLabel: true,
+      service: { select: { id: true, name: true, prefix: true, isActive: true } },
+      visitor: { select: { id: true, phone: true } },
       calledBy: { select: { id: true, firstName: true, lastName: true } },
     },
   });
 }
 
-/**
- * Get the position of a WAITING ticket in its service queue.
- */
+export async function createTicket(phone: string, serviceId: string) {
+  return prisma.$transaction(async (tx) => {
+    const phoneHash = hashPhone(phone);
+
+    const existing = await tx.ticket.findFirst({
+      where: {
+        visitor: { phone: phoneHash },
+        status: { in: [TicketStatus.WAITING, TicketStatus.SERVING] },
+      },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        calledAt: true,
+        completedAt: true,
+        calledById: true,
+        calledFromCounterLabel: true,
+        service: { select: { id: true, name: true, prefix: true, isActive: true } },
+        visitor: { select: { id: true, phone: true } },
+      },
+    });
+    if (existing) {
+      return { ticket: existing, isExisting: true };
+    }
+
+    const visitor = await tx.visitor.upsert({
+      where: { phone: phoneHash },
+      create: { phone: phoneHash },
+      update: {},
+    });
+
+    const service = await tx.service.findUniqueOrThrow({
+      where: { id: serviceId },
+      select: { prefix: true },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sequence = await tx.dailySequence.upsert({
+      where: { serviceId_date: { serviceId, date: today } },
+      create: { serviceId, date: today, lastNumber: 1 },
+      update: { lastNumber: { increment: 1 } },
+    });
+
+    const number = sequence.lastNumber;
+    const displayCode = formatTicketNumber(number, service.prefix || undefined);
+
+    const ticket = await tx.ticket.create({
+      data: {
+        number,
+        displayCode,
+        serviceId,
+        visitorId: visitor.id,
+      },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        calledAt: true,
+        completedAt: true,
+        calledById: true,
+        calledFromCounterLabel: true,
+        service: { select: { id: true, name: true, prefix: true, isActive: true } },
+        visitor: { select: { id: true, phone: true } },
+      },
+    });
+
+    return { ticket, isExisting: false };
+  });
+}
+
+export async function getTicketById(id: string) {
+  return prisma.ticket.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      number: true,
+      displayCode: true,
+      status: true,
+      serviceId: true,
+      visitorId: true,
+      createdAt: true,
+      calledAt: true,
+      completedAt: true,
+      calledById: true,
+      calledFromCounterLabel: true,
+      service: { select: { id: true, name: true, prefix: true, isActive: true } },
+      visitor: { select: { id: true, phone: true } },
+      calledBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+}
+
 export async function getTicketPosition(ticketId: string): Promise<number> {
   const ticket = await prisma.ticket.findUnique({
     where: { id: ticketId },
@@ -128,121 +149,230 @@ export async function getTicketPosition(ticketId: string): Promise<number> {
   return ahead + 1;
 }
 
-/**
- * Call the next waiting ticket for a service.
- */
+const TICKET_SELECT = {
+  id: true,
+  number: true,
+  displayCode: true,
+  status: true,
+  serviceId: true,
+  visitorId: true,
+  createdAt: true,
+  calledAt: true,
+  completedAt: true,
+  calledById: true,
+  calledFromCounterLabel: true,
+  returnedToQueue: true,
+  returnReason: true,
+  service: { select: { id: true, name: true, prefix: true, isActive: true } },
+  visitor: { select: { id: true, phone: true } },
+};
+
+async function autoCompleteServingTickets(tx: any, agentId: string) {
+  const previouslyServing = await tx.ticket.findMany({
+    where: { calledById: agentId, status: TicketStatus.SERVING },
+    select: { id: true, serviceId: true },
+  });
+
+  if (previouslyServing.length > 0) {
+    await tx.ticket.updateMany({
+      where: { calledById: agentId, status: TicketStatus.SERVING },
+      data: { status: TicketStatus.COMPLETED, completedAt: new Date() },
+    });
+  }
+
+  return previouslyServing;
+}
+
 export async function callNextTicket(serviceId: string, agentId: string) {
-  const nextTicket = await prisma.ticket.findFirst({
-    where: {
-      serviceId,
-      status: TicketStatus.WAITING,
-    },
-    orderBy: { createdAt: 'asc' },
-  });
+  return prisma.$transaction(async (tx) => {
+    const completedTickets = await autoCompleteServingTickets(tx, agentId);
 
-  if (!nextTicket) return null;
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM tickets
+      WHERE service_id = ${serviceId} AND status = 'WAITING'
+      ORDER BY "createdAt" ASC
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    `;
 
-  const counter = await prisma.counter.findFirst({
-    where: { agentId },
-    select: { label: true },
-  });
+    if (rows.length === 0) {
+      return completedTickets.length > 0 ? { ticket: null, completedTickets } : null;
+    }
 
-  return prisma.ticket.update({
-    where: { id: nextTicket.id },
-    data: {
-      status: TicketStatus.SERVING,
-      calledById: agentId,
-      calledAt: new Date(),
-      calledFromCounterLabel: counter?.label ?? null,
-    },
-    include: {
-      service: true,
-      visitor: true,
-    },
-  });
-}
+    const counter = await tx.counter.findFirst({
+      where: { agentId },
+      select: { label: true },
+    });
 
-/**
- * Call a specific ticket by ID.
- */
-export async function callTicketById(ticketId: string, agentId: string) {
-  const counter = await prisma.counter.findFirst({
-    where: { agentId },
-    select: { label: true },
-  });
+    const ticket = await tx.ticket.update({
+      where: { id: rows[0].id },
+      data: {
+        status: TicketStatus.SERVING,
+        calledById: agentId,
+        calledAt: new Date(),
+        calledFromCounterLabel: counter?.label ?? null,
+        returnedToQueue: false,
+      },
+      select: TICKET_SELECT,
+    });
 
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data: {
-      status: TicketStatus.SERVING,
-      calledById: agentId,
-      calledAt: new Date(),
-      calledFromCounterLabel: counter?.label ?? null,
-    },
-    include: {
-      service: true,
-      visitor: true,
-    },
+    return { ticket, completedTickets };
   });
 }
 
-/**
- * Mark a ticket as completed.
- */
+type TicketWithRelations = {
+  id: string;
+  number: number;
+  displayCode: string;
+  status: TicketStatus;
+  serviceId: string;
+  visitorId: string;
+  createdAt: Date;
+  calledAt: Date | null;
+  completedAt: Date | null;
+  calledById: string | null;
+  calledFromCounterLabel: string | null;
+  returnedToQueue: boolean;
+  returnReason: string | null;
+  service: { id: string; name: string; prefix: string; isActive: boolean };
+  visitor: { id: string; phone: string };
+};
+
+type CallResult =
+  | null
+  | 'FORBIDDEN'
+  | { ticket: TicketWithRelations; completedTickets: { id: string; serviceId: string }[] }
+  | { ticket: null; completedTickets: { id: string; serviceId: string }[] };
+
+export async function callTicketById(ticketId: string, agentId: string, agentServiceId: string): Promise<CallResult> {
+  return prisma.$transaction(async (tx) => {
+    const completedTickets = await autoCompleteServingTickets(tx, agentId);
+
+    const ticket = await tx.ticket.findUnique({
+      where: { id: ticketId },
+      select: { status: true, serviceId: true },
+    });
+
+    if (!ticket || ticket.status !== TicketStatus.WAITING) {
+      return completedTickets.length > 0 ? { ticket: null, completedTickets } : null;
+    }
+    if (ticket.serviceId !== agentServiceId) {
+      return completedTickets.length > 0 ? ({ ticket: null, completedTickets, forbidden: true } as CallResult) : 'FORBIDDEN';
+    }
+
+    const counter = await tx.counter.findFirst({
+      where: { agentId },
+      select: { label: true },
+    });
+
+    const newTicket = await tx.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: TicketStatus.SERVING,
+        calledById: agentId,
+        calledAt: new Date(),
+        calledFromCounterLabel: counter?.label ?? null,
+        returnedToQueue: false,
+      },
+      select: TICKET_SELECT,
+    });
+
+    return { ticket: newTicket, completedTickets };
+  });
+}
+
 export async function completeTicket(ticketId: string) {
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data: {
-      status: TicketStatus.COMPLETED,
-      completedAt: new Date(),
-    },
-    include: {
-      service: true,
-      visitor: true,
-    },
-  });
+  try {
+    return await prisma.ticket.update({
+      where: { id: ticketId, status: TicketStatus.SERVING },
+      data: {
+        status: TicketStatus.COMPLETED,
+        completedAt: new Date(),
+      },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        calledAt: true,
+        completedAt: true,
+        calledById: true,
+        calledFromCounterLabel: true,
+        service: { select: { id: true, name: true, prefix: true, isActive: true } },
+        visitor: { select: { id: true, phone: true } },
+      },
+    });
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Return a ticket to the waiting queue (back to WAITING).
- */
-export async function returnTicketToQueue(ticketId: string) {
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data: {
-      status: TicketStatus.WAITING,
-      calledById: null,
-      calledAt: null,
-    },
-    include: {
-      service: true,
-      visitor: true,
-    },
-  });
+export async function returnTicketToQueue(ticketId: string, reason?: string) {
+  try {
+    return await prisma.ticket.update({
+      where: { id: ticketId, status: TicketStatus.SERVING },
+      data: {
+        status: TicketStatus.WAITING,
+        calledById: null,
+        calledAt: null,
+        returnedToQueue: true,
+        returnReason: reason ?? null,
+      },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        calledAt: true,
+        completedAt: true,
+        calledById: true,
+        calledFromCounterLabel: true,
+        service: { select: { id: true, name: true, prefix: true, isActive: true } },
+        visitor: { select: { id: true, phone: true } },
+      },
+    });
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Mark a ticket as no-show.
- */
 export async function markNoShow(ticketId: string) {
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data: {
-      status: TicketStatus.NO_SHOW,
-      completedAt: new Date(),
-    },
-    include: {
-      service: true,
-      visitor: true,
-    },
-  });
+  try {
+    return await prisma.ticket.update({
+      where: { id: ticketId, status: TicketStatus.SERVING },
+      data: {
+        status: TicketStatus.NO_SHOW,
+        completedAt: new Date(),
+      },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        calledAt: true,
+        completedAt: true,
+        calledById: true,
+        calledFromCounterLabel: true,
+        service: { select: { id: true, name: true, prefix: true, isActive: true } },
+        visitor: { select: { id: true, phone: true } },
+      },
+    });
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Get queue stats for a service, scoped to a specific agent.
- */
 export async function getQueueStats(serviceId: string, agentId?: string) {
-  const [waitingCount, currentTicket, waitingTickets] = await Promise.all([
+  const [waitingCount, currentTicket, waitingTickets, returnedTickets] = await Promise.all([
     prisma.ticket.count({
       where: { serviceId, status: TicketStatus.WAITING },
     }),
@@ -253,12 +383,54 @@ export async function getQueueStats(serviceId: string, agentId?: string) {
         ...(agentId ? { calledById: agentId } : {}),
       },
       orderBy: { calledAt: 'desc' },
-      include: { visitor: true },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        calledAt: true,
+        completedAt: true,
+        calledById: true,
+        calledFromCounterLabel: true,
+        returnedToQueue: true,
+        returnReason: true,
+        visitor: { select: { id: true, phone: true } },
+      },
     }),
     prisma.ticket.findMany({
-      where: { serviceId, status: TicketStatus.WAITING },
+      where: { serviceId, status: TicketStatus.WAITING, returnedToQueue: false },
       orderBy: { createdAt: 'asc' },
-      include: { visitor: true },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        returnedToQueue: true,
+        returnReason: true,
+        visitor: { select: { id: true, phone: true } },
+      },
+    }),
+    prisma.ticket.findMany({
+      where: { serviceId, status: TicketStatus.WAITING, returnedToQueue: true },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        number: true,
+        displayCode: true,
+        status: true,
+        serviceId: true,
+        visitorId: true,
+        createdAt: true,
+        returnedToQueue: true,
+        returnReason: true,
+        visitor: { select: { id: true, phone: true } },
+      },
     }),
   ]);
 
@@ -266,57 +438,68 @@ export async function getQueueStats(serviceId: string, agentId?: string) {
     waitingCount,
     currentTicket,
     waitingTickets,
+    returnedTickets,
     nextTicket: waitingTickets[0] ?? null,
   };
 }
 
-/**
- * Get display data for a service (public screen).
- */
 export async function getDisplayData(serviceId: string) {
-  const [servingTickets, waitingTickets] = await Promise.all([
+  const [servingTickets, waitingCount, previousFromCompleted] = await Promise.all([
     prisma.ticket.findMany({
       where: { serviceId, status: TicketStatus.SERVING },
       orderBy: { calledAt: 'desc' },
       take: 8,
+      select: {
+        displayCode: true,
+        calledFromCounterLabel: true,
+        calledAt: true,
+        returnedToQueue: true,
+        returnReason: true,
+      },
+    }),
+    prisma.ticket.count({
+      where: { serviceId, status: TicketStatus.WAITING },
     }),
     prisma.ticket.findMany({
-      where: { serviceId, status: TicketStatus.WAITING },
-      orderBy: { createdAt: 'asc' },
+      where: { serviceId, status: { in: [TicketStatus.COMPLETED, TicketStatus.NO_SHOW] } },
+      orderBy: { completedAt: 'desc' },
+      take: 3,
+      select: {
+        displayCode: true,
+        calledFromCounterLabel: true,
+      },
     }),
   ]);
 
   const currentTicket = servingTickets[0] ?? null;
 
-  // Les 2 tickets precedemment appeles (indices 1 et 2 dans les tickets en service,
-  // completes par les derniers tickets termines si necessaire)
   type PreviousTicket = { displayCode: string; counterLabel: string | null };
-  const previousTickets: PreviousTicket[] = servingTickets.slice(1, 3).map((t) => ({
+  const previousTickets: PreviousTicket[] = servingTickets.slice(1, 4).map((t) => ({
     displayCode: t.displayCode,
     counterLabel: t.calledFromCounterLabel ?? null,
   }));
 
-  if (previousTickets.length < 2) {
-    const needed = 2 - previousTickets.length;
-    const lastDone = await prisma.ticket.findMany({
-      where: { serviceId, status: { in: [TicketStatus.COMPLETED, TicketStatus.NO_SHOW] } },
-      orderBy: { completedAt: 'desc' },
-      take: needed,
-    });
-    for (const t of lastDone) {
-      previousTickets.push({ displayCode: t.displayCode, counterLabel: t.calledFromCounterLabel ?? null });
+  if (previousTickets.length < 3) {
+    const needed = 3 - previousTickets.length;
+    for (let i = 0; i < needed && i < previousFromCompleted.length; i++) {
+      previousTickets.push({
+        displayCode: previousFromCompleted[i].displayCode,
+        counterLabel: previousFromCompleted[i].calledFromCounterLabel ?? null,
+      });
     }
   }
 
   return {
     currentCode: currentTicket?.displayCode ?? null,
     currentCounter: currentTicket?.calledFromCounterLabel ?? null,
+    currentReturnReason: currentTicket?.returnedToQueue ? (currentTicket.returnReason ?? null) : null,
     previousTickets,
-    waitingCount: waitingTickets.length,
+    waitingCount,
     servingTickets: servingTickets.map((t) => ({
       displayCode: t.displayCode,
       counterLabel: t.calledFromCounterLabel ?? null,
       calledAt: t.calledAt?.toISOString() ?? null,
+      returnReason: t.returnedToQueue ? (t.returnReason ?? null) : null,
     })),
   };
 }

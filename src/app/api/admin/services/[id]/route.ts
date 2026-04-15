@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
+import { emitTickerUpdated, emitFeedUpdated } from '@/lib/socket-emitter';
 
 const updateServiceSchema = z.object({
   name: z.string().min(1).optional(),
@@ -16,6 +17,7 @@ const updateServiceSchema = z.object({
   tickerBgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   tickerTextColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   tickerFontSize: z.number().int().min(12).max(60).optional(),
+  showPreviousTickets: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -37,6 +39,13 @@ export async function PATCH(
       where: { id },
       data: parsed.data,
     });
+
+    if ('tickerMessage' in parsed.data || 'tickerActive' in parsed.data || 'tickerPosition' in parsed.data || 'tickerHeight' in parsed.data || 'tickerBgColor' in parsed.data || 'tickerTextColor' in parsed.data || 'tickerFontSize' in parsed.data || 'showPreviousTickets' in parsed.data) {
+      emitTickerUpdated(id);
+    }
+    if ('feedUrl' in parsed.data || 'feedActive' in parsed.data) {
+      emitFeedUpdated(id);
+    }
 
     return NextResponse.json({ service });
   } catch (error) {

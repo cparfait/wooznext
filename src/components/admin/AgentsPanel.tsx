@@ -9,6 +9,7 @@ interface Agent {
   email: string;
   role: string;
   isActive: boolean;
+  isAnonymized: boolean;
   serviceId: string | null;
   service: { name: string } | null;
 }
@@ -24,14 +25,14 @@ export default function AgentsPanel() {
   const [services, setServices] = useState<Service[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'AGENT', serviceId: '' });
-  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [fetchError, setFetchError] = useState('');
 
-  // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', role: 'AGENT', serviceId: '', password: '' });
   const [editLoading, setEditLoading] = useState(false);
@@ -43,19 +44,31 @@ export default function AgentsPanel() {
   }, []);
 
   async function fetchAgents() {
-    const res = await fetch('/api/admin/agents');
-    if (res.ok) setAgents((await res.json()).agents);
+    try {
+      const res = await fetch('/api/admin/agents');
+      if (res.ok) {
+        setAgents((await res.json()).agents);
+      } else {
+        setFetchError('Impossible de charger les agents');
+      }
+    } catch {
+      setFetchError('Erreur reseau lors du chargement des agents');
+    } finally {
+      setInitialLoading(false);
+    }
   }
 
   async function fetchServices() {
-    const res = await fetch('/api/services');
-    if (res.ok) setServices((await res.json()).services);
+    try {
+      const res = await fetch('/api/services');
+      if (res.ok) setServices((await res.json()).services);
+    } catch {}
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setCreating(true);
 
     const res = await fetch('/api/admin/agents', {
       method: 'POST',
@@ -74,16 +87,7 @@ export default function AgentsPanel() {
       const data = await res.json();
       setError(data.error || 'Erreur');
     }
-    setLoading(false);
-  }
-
-  async function toggleActive(id: string, isActive: boolean) {
-    await fetch(`/api/admin/agents/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: !isActive }),
-    });
-    await fetchAgents();
+    setCreating(false);
   }
 
   async function handleDelete(id: string) {
@@ -149,13 +153,34 @@ export default function AgentsPanel() {
     setEditLoading(false);
   }
 
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="rounded-xl bg-red-50 p-6 text-center">
+        <p className="text-sm font-medium text-red-700">{fetchError}</p>
+        <button
+          onClick={() => { setInitialLoading(true); setFetchError(''); fetchAgents(); }}
+          className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+        >
+          Reessayer
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Toggle form */}
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="w-full rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600"
+          className="h-10 w-full rounded-lg bg-primary-500 px-4 text-sm font-semibold text-white hover:bg-primary-600"
         >
           Creer un agent
         </button>
@@ -169,7 +194,7 @@ export default function AgentsPanel() {
               onChange={(e) => setForm({ ...form, firstName: e.target.value })}
               placeholder="Prenom"
               required
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+              className="h-10 flex-1 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
             />
             <input
               type="text"
@@ -177,7 +202,7 @@ export default function AgentsPanel() {
               onChange={(e) => setForm({ ...form, lastName: e.target.value })}
               placeholder="Nom"
               required
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+              className="h-10 flex-1 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
             />
           </div>
           <input
@@ -186,7 +211,7 @@ export default function AgentsPanel() {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             placeholder="Email"
             required
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            className="h-10 block w-full rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
           />
           <input
             type="password"
@@ -194,13 +219,13 @@ export default function AgentsPanel() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             placeholder="Mot de passe (min 6 car.)"
             required
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+            className="h-10 block w-full rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
           />
           <div className="flex gap-3">
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+              className="h-10 flex-1 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="AGENT">Agent</option>
               <option value="ADMIN">Admin</option>
@@ -208,7 +233,7 @@ export default function AgentsPanel() {
             <select
               value={form.serviceId}
               onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+              className="h-10 flex-1 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="">Aucun service</option>
               {services.map((s) => (
@@ -220,29 +245,28 @@ export default function AgentsPanel() {
             <button
               type="button"
               onClick={() => { setShowForm(false); setError(''); }}
-              className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              className="h-10 flex-1 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 rounded-lg bg-primary-500 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+              disabled={creating}
+              className="h-10 flex-1 rounded-lg bg-primary-500 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
             >
-              {loading ? 'Creation...' : 'Creer'}
+              {creating ? 'Creation...' : 'Creer'}
             </button>
           </div>
         </form>
       )}
 
-      {/* Agent list */}
       <div className="space-y-2">
         {agents.map((a) => (
           <div key={a.id}>
             <div
               className={`flex items-center justify-between rounded-xl bg-white p-4 shadow-sm ${
-                !a.isActive ? 'opacity-50' : ''
-              } ${editingId === a.id ? 'rounded-b-none' : ''}`}
+                editingId === a.id ? 'rounded-b-none' : ''
+              }`}
             >
               <div>
                 <div className="flex items-center gap-2">
@@ -263,31 +287,21 @@ export default function AgentsPanel() {
               <div className="flex gap-2">
                 <button
                   onClick={() => editingId === a.id ? cancelEdit() : startEdit(a)}
-                  className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  className="h-8 rounded-lg bg-gray-50 px-3 text-xs font-medium text-gray-600 hover:bg-gray-100"
                 >
                   {editingId === a.id ? 'Fermer' : 'Modifier'}
-                </button>
-                <button
-                  onClick={() => toggleActive(a.id, a.isActive)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                    a.isActive
-                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                      : 'bg-green-50 text-green-600 hover:bg-green-100'
-                  }`}
-                >
-                  {a.isActive ? 'Desactiver' : 'Activer'}
                 </button>
                 {deleteConfirm === a.id ? (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleDelete(a.id)}
-                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                      className="h-8 rounded-lg bg-red-600 px-3 text-xs font-medium text-white hover:bg-red-700"
                     >
                       Confirmer
                     </button>
                     <button
                       onClick={() => { setDeleteConfirm(null); setDeleteError(null); }}
-                      className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
+                      className="h-8 rounded-lg bg-gray-100 px-3 text-xs font-medium text-gray-600 hover:bg-gray-200"
                     >
                       Annuler
                     </button>
@@ -295,7 +309,7 @@ export default function AgentsPanel() {
                 ) : (
                   <button
                     onClick={() => { setDeleteConfirm(a.id); setDeleteError(null); }}
-                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                    className="h-8 rounded-lg bg-red-50 px-3 text-xs font-medium text-red-600 hover:bg-red-100"
                   >
                     Supprimer
                   </button>
@@ -306,7 +320,6 @@ export default function AgentsPanel() {
               )}
             </div>
 
-            {/* Inline edit form */}
             {editingId === a.id && (
               <form
                 onSubmit={handleEdit}
@@ -320,7 +333,7 @@ export default function AgentsPanel() {
                     onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
                     placeholder="Prenom"
                     required
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                    className="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-primary-500 focus:outline-none"
                   />
                   <input
                     type="text"
@@ -328,7 +341,7 @@ export default function AgentsPanel() {
                     onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
                     placeholder="Nom"
                     required
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                    className="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-primary-500 focus:outline-none"
                   />
                 </div>
                 <input
@@ -337,20 +350,20 @@ export default function AgentsPanel() {
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   placeholder="Email"
                   required
-                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  className="h-10 block w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-primary-500 focus:outline-none"
                 />
                 <input
                   type="password"
                   value={editForm.password}
                   onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                   placeholder="Nouveau mot de passe (laisser vide pour ne pas changer)"
-                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                  className="h-10 block w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-primary-500 focus:outline-none"
                 />
                 <div className="flex gap-3">
                   <select
                     value={editForm.role}
                     onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                    className="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-primary-500 focus:outline-none"
                   >
                     <option value="AGENT">Agent</option>
                     <option value="ADMIN">Admin</option>
@@ -358,7 +371,7 @@ export default function AgentsPanel() {
                   <select
                     value={editForm.serviceId}
                     onChange={(e) => setEditForm({ ...editForm, serviceId: e.target.value })}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                    className="h-10 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:border-primary-500 focus:outline-none"
                   >
                     <option value="">Aucun service</option>
                     {services.map((s) => (
@@ -370,14 +383,14 @@ export default function AgentsPanel() {
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                    className="h-10 flex-1 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={editLoading}
-                    className="flex-1 rounded-lg bg-primary-500 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
+                    className="h-10 flex-1 rounded-lg bg-primary-500 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-50"
                   >
                     {editLoading ? 'Enregistrement...' : 'Enregistrer'}
                   </button>

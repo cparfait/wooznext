@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { auditLog } from '@/lib/audit';
@@ -78,7 +79,10 @@ export async function DELETE(
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
-    // Check if agent has active tickets (SERVING)
+    const agent = await prisma.agent.findUnique({ where: { id } });
+    if (!agent) return NextResponse.json({ error: 'Agent introuvable' }, { status: 404 });
+    if (agent.isAnonymized) return NextResponse.json({ error: 'Impossible de supprimer cet agent' }, { status: 400 });
+
     const servingCount = await prisma.ticket.count({
       where: { calledById: id, status: 'SERVING' },
     });
@@ -89,14 +93,51 @@ export async function DELETE(
       );
     }
 
-    // Unassign from counters first
-    await prisma.counter.updateMany({
-      where: { agentId: id },
-      data: { agentId: null },
+    const targetServiceId = agent.serviceId;
+    if (!targetServiceId) {
+      await prisma.counter.updateMany({ where: { agentId: id }, data: { agentId: null } });
+      await prisma.agent.delete({ where: { id } });
+      auditLog('AGENT_DELETED', { actorId: session.user.id, targetId: id });
+      return NextResponse.json({ success: true });
+    }
+
+    let anonAgent = await prisma.agent.findFirst({
+      where: { serviceId: targetServiceId, isAnonymized: true },
     });
 
-    await prisma.agent.delete({ where: { id } });
-    auditLog('AGENT_DELETED', { actorId: session.user.id, targetId: id });
+    if (!anonAgent) {
+      const service = await prisma.service.findUnique({ where: { id: targetServiceId } });
+      const prefix = service?.prefix ?? 'SRV';
+      const randomSuffix = crypto.randomBytes(4).toString('hex');
+      anonAgent = await prisma.agent.create({
+        data: {
+          firstName: 'Anciens',
+          lastName: `Agents ${prefix}`,
+          email: `anonymized-${prefix}-${randomSuffix}@wooz.internal`,
+          passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+          role: 'AGENT',
+          serviceId: targetServiceId,
+          isActive: false,
+          isAnonymized: true,
+        },
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.ticket.updateMany({
+        where: { calledById: id },
+        data: { calledById: anonAgent!.id },
+      });
+
+      await tx.counter.updateMany({
+        where: { agentId: id },
+        data: { agentId: null },
+      });
+
+      await tx.agent.delete({ where: { id } });
+    });
+
+    auditLog('AGENT_DELETED', { actorId: session.user.id, targetId: id, transferredTo: anonAgent.id });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting agent:', error);

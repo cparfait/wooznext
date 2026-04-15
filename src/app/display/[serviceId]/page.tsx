@@ -34,6 +34,7 @@ export default async function DisplayServicePage({ params }: DisplayServicePageP
         fontSize: service.tickerFontSize,
       }}
       initialHasFeed={!!service.feedUrl && service.feedActive}
+      initialShowPreviousTickets={service.showPreviousTickets}
     />
   );
 }

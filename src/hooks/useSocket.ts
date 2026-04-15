@@ -59,7 +59,7 @@ export function useServiceSocket(
     joinAndRegister();
     socket.on('connect', joinAndRegister);
 
-    const events = ['queue:updated', 'ticket:called', 'ticket:completed'];
+    const events = ['queue:updated', 'ticket:called', 'ticket:completed', 'ticker:updated', 'feed:updated'];
     const handler = (event: string) => (data: any) => {
       onEventRef.current(event, data);
     };

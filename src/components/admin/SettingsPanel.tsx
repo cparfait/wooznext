@@ -95,7 +95,7 @@ export default function SettingsPanel() {
             </div>
             <button
               onClick={handleDelete}
-              className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+              className="h-10 rounded-lg px-3 text-sm text-red-600 hover:bg-red-50"
             >
               Supprimer
             </button>
@@ -104,7 +104,7 @@ export default function SettingsPanel() {
 
         {/* Upload */}
         <div className="flex items-center gap-3">
-          <label className="cursor-pointer rounded-lg bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors">
+          <label className="h-10 inline-flex cursor-pointer items-center rounded-lg bg-primary-700 px-4 text-sm font-medium text-white hover:bg-primary-600 transition-colors">
             {uploading ? 'Envoi en cours...' : logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
             <input
               ref={fileRef}
@@ -127,9 +127,6 @@ export default function SettingsPanel() {
         )}
       </div>
 
-      <p className="text-sm text-gray-500">
-        Le flux d&apos;actualites et le message defilant se configurent par service dans l&apos;onglet Services.
-      </p>
     </div>
   );
 }

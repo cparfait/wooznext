@@ -13,11 +13,9 @@ interface CounterOption {
 function CounterSelectionStep({
   counters,
   onSelect,
-  onSkip,
 }: {
   counters: CounterOption[];
   onSelect: (counterId: string) => void;
-  onSkip: () => void;
 }) {
   const [selecting, setSelecting] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -85,15 +83,6 @@ function CounterSelectionStep({
           );
         })}
       </div>
-
-      <button
-        type="button"
-        onClick={onSkip}
-        disabled={selecting !== null}
-        className="w-full rounded-xl border border-gray-300 py-3 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
-      >
-        Passer
-      </button>
     </div>
   );
 }
@@ -194,7 +183,6 @@ function LoginForm() {
       <CounterSelectionStep
         counters={counters}
         onSelect={handleCounterDone}
-        onSkip={handleCounterDone}
       />
     );
   }
