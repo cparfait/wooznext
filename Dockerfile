@@ -17,6 +17,8 @@ RUN npx tsc server.ts --outDir . --esModuleInterop --module commonjs --moduleRes
 FROM node:22-alpine AS runner
 WORKDIR /app
 
+RUN apk add --no-cache openssl
+
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
@@ -29,6 +31,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/server.js ./server.js
 
 COPY --from=builder /app/node_modules ./node_modules
+RUN chown -R nextjs:nodejs /app/node_modules
 
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
