@@ -373,6 +373,62 @@ docker compose logs -f app # Logs de l'application
 
 L'application est accessible sur le port **3000**. Configurez un reverse proxy pour le HTTPS.
 
+---
+
+### Deploiement via Portainer
+
+Si vous utilisez [Portainer](https://www.portainer.io/) pour gerer vos conteneurs :
+
+#### Installer Portainer (si necessaire)
+
+```bash
+docker volume create portainer_data
+docker run -d -p 8000:8000 -p 9443:9443 \
+  --name portainer --restart=always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  portainer/portainer-ce:latest
+```
+
+Acces : `https://IP_DU_SERVEUR:9443`
+
+#### Deployer WoozNext
+
+1. Clonez le repo sur le serveur et preparez le `.env` :
+
+```bash
+git clone https://github.com/cparfait/wooznext.git
+cd wooznext
+cp .env.example .env
+nano .env
+```
+
+2. Lancez l'application en SSH :
+
+```bash
+docker compose up -d --build
+```
+
+Portainer detectera automatiquement les conteneurs.
+
+3. Ou via l'interface Portainer :
+   - **Stacks** → **Add stack**
+   - **Build method** : **Repository**
+   - **Repository URL** : `https://github.com/cparfait/wooznext.git`
+   - **Compose path** : `docker-compose.yml`
+   - **Environment variables** : ajoutez les variables de votre `.env` (voir section 2 ci-dessus)
+   - Cliquez **Deploy the stack**
+
+#### Gerer depuis Portainer
+
+| Action | Dans Portainer |
+|---|---|
+| Voir les logs | Conteneur `wooznext-app-1` → **Logs** |
+| Acceder au shell | Conteneur → **Console** → `/bin/sh` |
+| Redemarrer | Conteneur → **Restart** |
+| Creer les comptes | **Console** → `npx tsx prisma/seed.ts` |
+| Mettre a jour | SSH : `git pull && docker compose up -d --build` puis Portainer reflète le changement |
+
 ### Exemple avec Nginx Proxy Manager
 
 1. Installez Nginx Proxy Manager sur le VPS :
