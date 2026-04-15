@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "3002:3000"
     deploy:
       resources:
         limits:
