@@ -9,7 +9,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
+RUN ./node_modules/.bin/prisma generate
 RUN npm run build
 # Compile custom server
 RUN npx tsc server.ts --outDir . --esModuleInterop --module commonjs --moduleResolution node --skipLibCheck
@@ -48,4 +48,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js migrate deploy && node server.js"]
