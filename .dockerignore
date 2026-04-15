@@ -10,7 +10,6 @@ Dockerfile
 .dockerignore
 *.md
 !README.md
-prisma/migrations
 test
 tests
 e2e
