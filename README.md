@@ -371,7 +371,7 @@ docker compose ps          # Etat des conteneurs
 docker compose logs -f app # Logs de l'application
 ```
 
-L'application est accessible sur le port **3000**. Configurez un reverse proxy pour le HTTPS.
+L'application est accessible sur le port **3002**. Configurez un reverse proxy pour le HTTPS.
 
 ---
 
@@ -451,7 +451,7 @@ docker run -d \
    - **Domain Names** : `votre-domaine.fr`
    - **Scheme** : `http`
    - **Forward Hostname/IP** : `host.docker.internal` (ou l'IP du conteneur app)
-   - **Forward Port** : `3000`
+   - **Forward Port** : `3002`
    - **Websockets Support** : **coche** (requis pour Socket.IO)
    - **Block Common Exploits** : coche
    - Onglet **SSL** : activez SSL, choisissez "Request a new SSL Certificate" via Let's Encrypt, cochez "Force SSL" et "HTTP/2 Support"
