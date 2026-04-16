@@ -124,6 +124,7 @@ SERVING → WAITING  (retour en file — confirmation requise)
 - Mots de passe hashés avec **bcrypt, coût 12**
 - Sessions JWT via NextAuth, cookie **HttpOnly + SameSite=Strict**
 - Middleware Next.js protège toutes les routes `/agent` et `/admin`
+- **CSP basée sur des nonces** : chaque requête génère un nonce aléatoire (via middleware), injecté dans les headers CSP et les `<script>` du layout. Pas de `unsafe-inline` en production
 - Rôles : `ADMIN` (gestion globale) et `AGENT` (opérations file)
 - Rate limiting sur la saisie du numéro de téléphone (anti-spam)
 - PostgreSQL **non exposé** sur le réseau public en production (réseau Docker interne)

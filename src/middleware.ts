@@ -1,25 +1,79 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
+
+function generateNonce(): string {
+  return crypto.randomBytes(16).toString('base64');
+}
+
+function buildCSP(nonce: string): string {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  const directives = [
+    `default-src 'self'`,
+    `script-src 'self' 'nonce-${nonce}'${isProd ? '' : " 'unsafe-eval'"}`,
+    `style-src 'self' 'unsafe-inline'`,
+    `img-src 'self' data: blob:`,
+    `font-src 'self'`,
+    `connect-src 'self' ws: wss:`,
+    `frame-ancestors 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+  ];
+
+  return directives.join('; ');
+}
+
+function setSecurityHeaders(response: NextResponse, csp: string) {
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('X-DNS-Prefetch-Control', 'on');
+  response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+}
 
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
+    const nonce = generateNonce();
+    const csp = buildCSP(nonce);
 
-    // Admin routes: allow ADMIN and AGENT (agents see only their service)
     if (pathname.startsWith('/admin') && token?.role !== 'ADMIN' && token?.role !== 'AGENT') {
-      return NextResponse.redirect(new URL('/agent', req.url));
+      const response = NextResponse.redirect(new URL('/agent', req.url));
+      setSecurityHeaders(response, csp);
+      return response;
     }
 
-    return NextResponse.next();
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-nonce', nonce);
+
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+
+    setSecurityHeaders(response, csp);
+    return response;
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+        if (pathname.startsWith('/agent/login')) return true;
+        if (pathname.startsWith('/agent')) return !!token;
+        if (pathname.startsWith('/admin')) return !!token;
+        return true;
+      },
     },
   }
 );
 
 export const config = {
-  matcher: ['/agent((?!/login).)*', '/admin/:path*', '/admin'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|sounds|api/socketio).*)',
+  ],
 };

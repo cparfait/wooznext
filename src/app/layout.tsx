@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Montserrat } from 'next/font/google';
+import Script from 'next/script';
 import SessionProvider from '@/components/SessionProvider';
+import { getNonce } from '@/lib/nonce';
 import './globals.css';
 
 const montserrat = Montserrat({
@@ -14,14 +16,17 @@ export const metadata: Metadata = {
   description: 'Système de gestion de file d\'attente pour collectivités',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = await getNonce();
+
   return (
-    <html lang="fr" className={montserrat.variable}>
+    <html lang="fr" className={montserrat.variable} nonce={nonce}>
       <body className="min-h-screen bg-gray-50 font-sans" suppressHydrationWarning>
+        <Script id="csp-nonce" nonce={nonce} strategy="beforeInteractive" />
         <SessionProvider>
           {children}
         </SessionProvider>
