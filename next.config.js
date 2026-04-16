@@ -19,7 +19,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      `script-src 'self'${isProd ? "" : " 'unsafe-inline' 'unsafe-eval'"}`,
+      `script-src 'self'${isProd ? " 'sha256-04TXEBplH3eotmjijrv8CpgZ+D4jl4w+mDrOH0SZDzw='" : " 'unsafe-inline' 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
