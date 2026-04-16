@@ -9,7 +9,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: `http://localhost:${process.env.PORT || 3002}`,
     trace: 'on-first-retry',
   },
   projects: [
@@ -20,7 +20,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: `http://localhost:${process.env.PORT || 3002}`,
     // Réutilise le serveur si déjà lancé (développement local)
     reuseExistingServer: true,
     timeout: 60_000,

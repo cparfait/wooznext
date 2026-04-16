@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   try {
     const serviceId = req.nextUrl.searchParams.get('serviceId');
-    const baseUrl = req.nextUrl.searchParams.get('url') || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const baseUrl = req.nextUrl.searchParams.get('url') || process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT || 3002}`;
 
     if (!serviceId) {
       // Sans serviceId, lister les services disponibles

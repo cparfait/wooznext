@@ -87,7 +87,7 @@ Editez `.env` :
 ```env
 DATABASE_URL=postgresql://wooznext:wooznext_dev@localhost:5432/wooznext
 NEXTAUTH_SECRET=votre_secret_ici
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3002
 ```
 
 Pour generer un secret securise :
@@ -139,7 +139,7 @@ set NODE_TLS_REJECT_UNAUTHORIZED=
 npm run dev
 ```
 
-L'application est accessible sur **http://localhost:3000**.
+L'application est accessible sur **http://localhost:3002**.
 
 ---
 
@@ -189,7 +189,7 @@ Editez `.env` :
 ```env
 DATABASE_URL=postgresql://wooznext:wooznext_dev@localhost:5432/wooznext
 NEXTAUTH_SECRET=votre_secret_ici
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3002
 ```
 
 Pour generer un secret securise :
@@ -233,19 +233,19 @@ npx prisma migrate dev
 npm run dev
 ```
 
-L'application est accessible sur **http://localhost:3000**.
+L'application est accessible sur **http://localhost:3002**.
 
 ## Tester les interfaces
 
 | Interface | URL | Acces |
 |---|---|---|
-| Visiteur | http://localhost:3000/?service=ID | Public (via QR code) |
-| Connexion Agent | http://localhost:3000/agent/login | Public |
-| Dashboard Agent | http://localhost:3000/agent | Apres connexion |
-| Admin | http://localhost:3000/admin | Compte admin |
-| Affichage Public | http://localhost:3000/display/SERVICE_ID | Public |
-| QR Code (liste) | http://localhost:3000/api/qrcode | Public (JSON) |
-| QR Code (SVG) | http://localhost:3000/api/qrcode?serviceId=ID | Public |
+| Visiteur | http://localhost:3002/?service=ID | Public (via QR code) |
+| Connexion Agent | http://localhost:3002/agent/login | Public |
+| Dashboard Agent | http://localhost:3002/agent | Apres connexion |
+| Admin | http://localhost:3002/admin | Compte admin |
+| Affichage Public | http://localhost:3002/display/SERVICE_ID | Public |
+| QR Code (liste) | http://localhost:3002/api/qrcode | Public (JSON) |
+| QR Code (SVG) | http://localhost:3002/api/qrcode?serviceId=ID | Public |
 
 ### Comptes de test
 
@@ -259,9 +259,9 @@ L'application est accessible sur **http://localhost:3000**.
 
 ### Parcours de test recommande
 
-1. **Admin** : connectez-vous sur http://localhost:3000/admin avec `admin@wooz.next` / `admin`. Les services SUPPORT et ACCUEIL sont deja crees. Cliquez "Liens / QR" sur un service pour obtenir l'URL visiteur.
+1. **Admin** : connectez-vous sur http://localhost:3002/admin avec `admin@wooz.next` / `admin`. Les services SUPPORT et ACCUEIL sont deja crees. Cliquez "Liens / QR" sur un service pour obtenir l'URL visiteur.
 2. **Visiteur** : ouvrez l'URL visiteur (avec `?service=ID`) sur votre telephone ou dans un onglet mobile. Saisissez un numero de telephone, prenez un ticket.
-3. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3000/agent/login avec `agent1@wooz.next` / `agent`. Cliquez "Suivant" pour appeler le visiteur.
+3. **Agent** : dans un autre onglet, connectez-vous sur http://localhost:3002/agent/login avec `agent1@wooz.next` / `agent`. Cliquez "Suivant" pour appeler le visiteur.
 4. **Temps reel** : observez la mise a jour instantanee sur la vue visiteur (son + popup "C'est votre tour !").
 5. **Affichage public** : ouvrez l'URL d'affichage (`/display/SERVICE_ID`) dans un troisieme onglet pour voir le ticket en cours et le bandeau des appels.
 

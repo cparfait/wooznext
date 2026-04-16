@@ -139,7 +139,7 @@ Voir `.env.example` pour la liste complète. Les variables critiques :
 ```
 DATABASE_URL          # URL de connexion PostgreSQL
 NEXTAUTH_SECRET       # Secret JWT (générer avec: openssl rand -base64 32)
-NEXTAUTH_URL          # URL publique de l'app (ex: http://localhost:3000)
+NEXTAUTH_URL          # URL publique de l'app (ex: http://localhost:3002)
 DB_PASSWORD           # Mot de passe PostgreSQL
 ```
 
