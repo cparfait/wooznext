@@ -177,49 +177,69 @@ export default function StatsPanel({ serviceScope }: { serviceScope?: string | n
     URL.revokeObjectURL(url);
   }
 
-  function exportExcel() {
+  async function exportExcel() {
     if (!stats) return;
-    import('xlsx').then((XLSX) => {
-      const wb = XLSX.utils.book_new();
+    const ExcelJS = await import('exceljs');
+    const wb = new ExcelJS.Workbook();
 
-      const summary = [
-        ['Indicateur', 'Valeur'],
-        ['Tickets', stats.totalToday],
-        ['Termines', stats.completedToday],
-        ['Absents', stats.noShowToday],
-        ['En attente', stats.waitingNow],
-        ['En service', stats.servingNow],
-        ['Temps moyen (s)', stats.avgServiceTimeSeconds],
-      ];
-      const ws1 = XLSX.utils.aoa_to_sheet(summary);
-      XLSX.utils.book_append_sheet(wb, ws1, 'Resume');
-
-      if (stats.perService.length > 0) {
-        const svc = [['Service', 'Total', 'Termines', 'En attente'],
-          ...stats.perService.map((s) => [s.name, s.total, s.completed, s.waiting])];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(svc), 'Par service');
+    function addSheet(name: string, rows: (string | number)[][]) {
+      const ws = wb.addWorksheet(name);
+      for (const row of rows) {
+        const r = ws.addRow(row);
+        if (r.number === 1) {
+          r.eachCell((cell) => {
+            cell.font = { bold: true };
+          });
+        }
       }
+    }
 
-      if (stats.perAgent.length > 0) {
-        const agt = [['Agent', 'Termines', 'Absents', 'Temps moyen (s)'],
-          ...stats.perAgent.map((a) => [a.name, a.completed, a.noShow, a.avgServiceTimeSeconds])];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(agt), 'Par agent');
-      }
+    addSheet('Resume', [
+      ['Indicateur', 'Valeur'],
+      ['Tickets', stats.totalToday],
+      ['Termines', stats.completedToday],
+      ['Absents', stats.noShowToday],
+      ['En attente', stats.waitingNow],
+      ['En service', stats.servingNow],
+      ['Temps moyen (s)', stats.avgServiceTimeSeconds],
+    ]);
 
-      if (stats.chartByHour.length > 0) {
-        const hr = [['Horaire', 'Total', 'Termines', 'Absents'],
-          ...stats.chartByHour.map((h) => [h.label, h.total, h.completed, h.noShow])];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hr), 'Par heure');
-      }
+    if (stats.perService.length > 0) {
+      addSheet('Par service', [
+        ['Service', 'Total', 'Termines', 'En attente'],
+        ...stats.perService.map((s) => [s.name, s.total, s.completed, s.waiting]),
+      ]);
+    }
 
-      if (stats.chartByDayOfWeek.length > 0) {
-        const dow = [['Jour', 'Total', 'Termines', 'Absents'],
-          ...stats.chartByDayOfWeek.map((d) => [d.label, d.total, d.completed, d.noShow])];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dow), 'Par jour');
-      }
+    if (stats.perAgent.length > 0) {
+      addSheet('Par agent', [
+        ['Agent', 'Termines', 'Absents', 'Temps moyen (s)'],
+        ...stats.perAgent.map((a) => [a.name, a.completed, a.noShow, a.avgServiceTimeSeconds]),
+      ]);
+    }
 
-      XLSX.writeFile(wb, `stats-${period}-${new Date().toISOString().split('T')[0]}.xlsx`);
-    });
+    if (stats.chartByHour.length > 0) {
+      addSheet('Par heure', [
+        ['Horaire', 'Total', 'Termines', 'Absents'],
+        ...stats.chartByHour.map((h) => [h.label, h.total, h.completed, h.noShow]),
+      ]);
+    }
+
+    if (stats.chartByDayOfWeek.length > 0) {
+      addSheet('Par jour', [
+        ['Jour', 'Total', 'Termines', 'Absents'],
+        ...stats.chartByDayOfWeek.map((d) => [d.label, d.total, d.completed, d.noShow]),
+      ]);
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stats-${period}-${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   if (!stats) return <p className="py-8 text-center text-gray-400">Chargement...</p>;
