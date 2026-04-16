@@ -318,15 +318,105 @@ npx playwright show-report
 
 ## Deploiement en production (VPS)
 
-### 1. Preparer le serveur
+Deux methodes sont disponibles : **depuis l'image pre-construite** (recommande) ou **depuis le code source**.
 
-Installez Docker et Docker Compose sur votre VPS (Ubuntu/Debian) :
+### Methode 1 : Image pre-construite (recommandee)
+
+L'image Docker est automatiquement build et publiee sur GitHub Container Registry (GHCR) a chaque push sur `main`.
+
+#### 1. Preparer le serveur
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 ```
 
-### 2. Cloner et configurer
+#### 2. Creer un Personal Access Token GitHub
+
+1. Allez sur https://github.com/settings/tokens/new
+2. Cochez le scope **`write:packages`** (auto-coche `read:packages`)
+3. Expiration : selon votre preference
+4. **Generate token** → copiez le token
+
+#### 3. Se connecter au registry (une seule fois)
+
+```bash
+echo VOTRE_TOKEN | docker login ghcr.io -u cparfait --password-stdin
+```
+
+#### 4. Creer le dossier de deploiement
+
+```bash
+mkdir -p /opt/wooznext && cd /opt/wooznext
+```
+
+#### 5. Telecharger le docker-compose de production
+
+```bash
+curl -sL https://raw.githubusercontent.com/cparfait/wooznext/main/docker-compose.prod.yml -o docker-compose.prod.yml
+```
+
+#### 6. Configurer les variables d'environnement
+
+```bash
+cat > .env << 'EOF'
+DB_PASSWORD=MOT_DE_PASSE_FORT
+NEXTAUTH_SECRET=secret_genere_avec_openssl_rand_base64_32
+NEXTAUTH_URL=https://votre-domaine.fr
+PHONE_PEPPER=pepper_genere_avec_openssl
+EOF
+```
+
+Pour generer les secrets :
+
+```bash
+openssl rand -base64 32
+```
+
+> **Important** : `NEXTAUTH_URL` determine la base de toutes les URLs generees par l'application (QR codes, liens visiteur, liens affichage public). Utilisez votre nom de domaine ou votre IP publique.
+
+#### 7. Deployer
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+#### 8. Mettre a jour (apres chaque push GitHub)
+
+```bash
+cd /opt/wooznext
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+L'image `latest` est automatiquement reconstruite par GitHub Actions a chaque push sur `main`. Il suffit de `pull` + `up -d`.
+
+#### Versionner les deploiements avec des tags Git
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Cela cree automatiquement les images `ghcr.io/cparfait/wooznext:v1.0.0` et `ghcr.io/cparfait/wooznext:1.0`.
+
+Pour deployer une version specifique :
+
+```bash
+IMAGE_TAG=v1.0.0 docker compose -f docker-compose.prod.yml up -d
+```
+
+---
+
+### Methode 2 : Depuis le code source (build local)
+
+#### 1. Preparer le serveur
+
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+
+#### 2. Cloner et configurer
 
 ```bash
 git clone https://github.com/cparfait/wooznext.git
@@ -344,27 +434,15 @@ NEXTAUTH_URL=https://votre-domaine.fr
 PHONE_PEPPER=pepper_genere_avec_openssl
 ```
 
-> **Important** : `NEXTAUTH_URL` determine la base de toutes les URLs generees par l'application (QR codes, liens visiteur, liens affichage public). Utilisez votre nom de domaine ou votre IP publique.
-
-### 3. Lancer
+#### 3. Lancer
 
 ```bash
 docker compose up -d --build
 ```
 
-Cela demarre PostgreSQL + l'application. Les migrations s'appliquent automatiquement au demarrage via `npx prisma migrate deploy`.
+Les migrations s'appliquent automatiquement au demarrage via `prisma migrate deploy`.
 
-L'application est configuree avec les optimisations production suivantes :
-- Index de base de donnees optimises pour les requetes frequentes
-- Arret propre (graceful shutdown) : les connexions Socket.IO et Prisma sont fermees proprement a l'arret du conteneur
-- Limites de ressources Docker (512 Mo RAM, 1 CPU)
-- Limite de 20 connexions Socket.IO par IP
-- CORS Socket.IO restreint au domaine de production (`NEXTAUTH_URL`)
-- En-tete `X-Powered-By` supprime
-- Cache immutable sur les fichiers statiques (`/sounds/*`)
-- CSP sans `unsafe-eval` en production
-
-### 4. Verifier
+#### 4. Verifier
 
 ```bash
 docker compose ps          # Etat des conteneurs
@@ -392,31 +470,38 @@ docker run -d -p 8000:8000 -p 9443:9443 \
 
 Acces : `https://IP_DU_SERVEUR:9443`
 
-#### Deployer WoozNext
+#### Deployer WoozNext depuis l'image GHCR (recommande)
 
-1. Clonez le repo sur le serveur et preparez le `.env` :
-
-```bash
-git clone https://github.com/cparfait/wooznext.git
-cd wooznext
-cp .env.example .env
-nano .env
-```
-
-2. Lancez l'application en SSH :
+1. Connectez-vous au registry GHCR depuis le VPS (une seule fois) :
 
 ```bash
-docker compose up -d --build
+echo VOTRE_TOKEN | docker login ghcr.io -u cparfait --password-stdin
 ```
 
-Portainer detectera automatiquement les conteneurs.
+2. Dans Portainer : **Stacks** → **Add stack**
+   - **Name** : `wooznext`
+   - **Build method** : **Upload**
+   - Televersez le fichier `docker-compose.prod.yml` (ou collez son contenu en mode **Web editor**)
+   - **Environment variables** : ajoutez les variables :
 
-3. Ou via l'interface Portainer :
-   - **Stacks** → **Add stack**
+```
+DB_PASSWORD=MOT_DE_PASSE_FORT
+NEXTAUTH_SECRET=secret_genere_avec_openssl
+NEXTAUTH_URL=https://votre-domaine.fr
+PHONE_PEPPER=pepper_genere_avec_openssl
+```
+
+   - Cliquez **Deploy the stack**
+
+3. Pour mettre a jour : **Stacks** → wooznext → **Pull and redeploy**
+
+#### Ou deployer depuis le repo Git
+
+1. Dans Portainer : **Stacks** → **Add stack**
    - **Build method** : **Repository**
    - **Repository URL** : `https://github.com/cparfait/wooznext.git`
    - **Compose path** : `docker-compose.yml`
-   - **Environment variables** : ajoutez les variables de votre `.env` (voir section 2 ci-dessus)
+   - **Environment variables** : ajoutez les variables (voir ci-dessus)
    - Cliquez **Deploy the stack**
 
 #### Gerer depuis Portainer
@@ -427,7 +512,8 @@ Portainer detectera automatiquement les conteneurs.
 | Acceder au shell | Conteneur → **Console** → `/bin/sh` |
 | Redemarrer | Conteneur → **Restart** |
 | Creer les comptes | **Console** → `npx tsx prisma/seed.ts` |
-| Mettre a jour | SSH : `git pull && docker compose up -d --build` puis Portainer reflète le changement |
+| Mettre a jour (image) | **Stacks** → wooznext → **Pull and redeploy** |
+| Mettre a jour (repo) | SSH : `git pull && docker compose up -d --build` |
 
 ### Exemple avec Nginx Proxy Manager
 
@@ -481,6 +567,14 @@ crontab -e
 
 ### Mettre a jour l'application apres un push GitHub
 
+**Depuis l'image GHCR (recommande)** :
+```bash
+cd /opt/wooznext
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**Depuis le code source** :
 ```bash
 git pull origin main
 docker compose up -d --build
@@ -592,10 +686,14 @@ wooznext/
 │   ├── hooks/           # Hooks Socket.IO
 │   ├── lib/             # Services, auth, audit, rate-limit, utilitaires
 │   └── types/           # Declarations TypeScript supplementaires
-├── server.ts            # Serveur custom (Next.js + Socket.IO)
-├── Dockerfile           # Build multi-stage production (Node.js 22)
-├── docker-compose.yml   # Production (app + db)
-└── docker-compose.dev.yml  # Dev (db seule)
+├── server.ts               # Serveur custom (Next.js + Socket.IO)
+├── Dockerfile              # Build multi-stage production (Node.js 22)
+├── docker-compose.yml      # Production (app + db, build local)
+├── docker-compose.prod.yml # Production (image GHCR pre-construite)
+├── docker-compose.dev.yml  # Developpement (db seule)
+└── .github/workflows/      # CI/CD GitHub Actions
+    ├── docker-publish.yml  # Build/push image Docker sur GHCR
+    └── playwright.yml      # Tests E2E (declenchement manuel)
 ```
 
 ## Licence
