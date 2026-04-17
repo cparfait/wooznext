@@ -25,6 +25,7 @@ services:
           memory: 512M
           cpus: '1.0'
     environment:
+      TZ: Europe/Paris
       DATABASE_URL: postgresql://wooznext:${DB_PASSWORD}@db:5432/wooznext
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
