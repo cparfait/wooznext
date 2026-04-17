@@ -163,3 +163,18 @@ model OpeningHours {
   @@unique([serviceId, dayOfWeek])
   @@map("opening_hours")
 }
+
+/// Taches planifiees (nettoyage minuit, purge RGPD)
+model CronJob {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  schedule      String   @default("0 0 * * *")
+  enabled       Boolean  @default(true)
+  lastRunAt     DateTime? @map("last_run_at")
+  lastRunStatus String?  @map("last_run_status")
+  lastRunResult String?  @map("last_run_result")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("cron_jobs")
+}

@@ -3,6 +3,7 @@ import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 import { setSocketIO } from './src/lib/socket-server';
+import { startScheduler } from './src/lib/scheduler';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -181,5 +182,6 @@ app.prepare().then(() => {
   httpServer.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> Socket.IO server running on /api/socketio`);
+    startScheduler().catch((err) => console.error('[Cron] Failed to start scheduler:', err));
   });
 });

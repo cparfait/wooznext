@@ -567,26 +567,12 @@ crontab -e
 
 ### Taches planifiees (RGPD + nettoyage)
 
-Deux scripts doivent etre executes quotidiennement en production :
+Les taches planifiees sont gerees directement dans l'application (onglet **Parametres** de l'admin) :
 
-- **Nettoyage minuit** (`scripts/midnight-cleanup.ts`) : ferme les tickets restants (WAITING → CANCELLED, SERVING → NO_SHOW) et libere les guichets
-- **Purge RGPD** (`scripts/purge-rgpd.ts`) : supprime les tickets de plus de 30 jours et les visiteurs orphelins (conformite RGPD)
+- **Nettoyage minuit** : ferme les tickets restants (WAITING → CANCELLED, SERVING → NO_SHOW) et libere les guichets. Par defaut tous les jours a minuit.
+- **Purge RGPD** : supprime les tickets de plus de 30 jours et les visiteurs orphelins. Par defaut tous les jours a 3h du matin.
 
-Planifiez-les via cron dans le container app :
-
-```bash
-crontab -e
-0 0 * * * docker exec wooznext-app-1 node ./node_modules/tsx/dist/cli.mjs scripts/midnight-cleanup.ts >> /var/log/wooznext-cleanup.log 2>&1
-0 3 * * * docker exec wooznext-app-1 node ./node_modules/tsx/dist/cli.mjs scripts/purge-rgpd.ts >> /var/log/wooznext-rgpd.log 2>&1
-```
-
-Ou via l'API (depuis le navigateur ou curl) :
-
-```bash
-curl -X POST https://votre-domaine.fr/api/admin/midnight-cleanup
-```
-
-> **Note** : l'endpoint `/api/admin/midnight-cleanup` necessite une authentification admin. Le script CLI peut s'executer sans authentification.
+Vous pouvez modifier les horaires (format cron), activer/desactiver chaque tache, et les executer manuellement depuis l'interface d'administration. Aucune configuration cron externe n'est necessaire.
 
 ### Mettre a jour l'application apres un push GitHub
 
