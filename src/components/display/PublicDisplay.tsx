@@ -87,7 +87,6 @@ export default function PublicDisplay({
   const [slideDuration, setSlideDuration] = useState(15000);
   const [progressKey, setProgressKey] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
-  const [showAllCalled, setShowAllCalled] = useState(false);
   const [showPreviousTickets, setShowPreviousTickets] = useState(initialShowPreviousTickets);
   const [feedActiveState, setFeedActiveState] = useState(initialHasFeed);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -99,6 +98,8 @@ export default function PublicDisplay({
   const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastRefreshRef = useRef<number>(0);
   const knownServingRef = useRef<Set<string>>(new Set());
+  const animationQueueRef = useRef<Array<{ code: string | null; counter: string | null }>>([]);
+  const isAnimatingRef = useRef(false);
   // Clock
   const [clockTime, setClockTime] = useState('');
   const [clockDate, setClockDate] = useState('');
@@ -204,7 +205,18 @@ export default function PublicDisplay({
     requestAnimationFrame(() => {
       setCalling(true);
       playNotificationSound();
-      callingTimerRef.current = setTimeout(() => setCalling(false), 10000);
+      callingTimerRef.current = setTimeout(() => {
+        setCalling(false);
+        isAnimatingRef.current = false;
+        if (animationQueueRef.current.length > 0) {
+          const next = animationQueueRef.current.shift()!;
+          setCallingCode(next.code);
+          setCallingCounter(next.counter);
+          if (next.code) setLastCalledCode(next.code);
+          if (next.counter !== undefined) setLastCalledCounter(next.counter);
+          triggerCalling();
+        }
+      }, 10000);
     });
   }, [playNotificationSound]);
 
@@ -219,11 +231,16 @@ export default function PublicDisplay({
           (newData.servingTickets ?? []).map((t: ServingTicket) => t.displayCode)
         );
         if (newData.currentCode && newData.currentCode !== prev.currentCode) {
-          setCallingCode(newData.currentCode);
-          setCallingCounter(newData.currentCounter);
+          if (isAnimatingRef.current) {
+            animationQueueRef.current.push({ code: newData.currentCode, counter: newData.currentCounter });
+          } else {
+            isAnimatingRef.current = true;
+            setCallingCode(newData.currentCode);
+            setCallingCounter(newData.currentCounter);
+            triggerCalling();
+          }
           if (newData.currentCode) setLastCalledCode(newData.currentCode);
           if (newData.currentCounter !== undefined) setLastCalledCounter(newData.currentCounter);
-          triggerCalling();
         }
         return newData;
       });
@@ -243,9 +260,14 @@ export default function PublicDisplay({
         if (code) setLastCalledCode(code);
         if (counter !== undefined) setLastCalledCounter(counter);
         if (!isRecall) {
-          setCallingCode(code);
-          setCallingCounter(counter);
-          triggerCalling();
+          if (isAnimatingRef.current) {
+            animationQueueRef.current.push({ code, counter });
+          } else {
+            isAnimatingRef.current = true;
+            setCallingCode(code);
+            setCallingCounter(counter);
+            triggerCalling();
+          }
         }
       }
       if (event === 'ticker:updated') {
@@ -406,12 +428,20 @@ export default function PublicDisplay({
                     {t.displayCode}
                   </span>
                   {t.counterLabel && (
-                    <span
-                      className="mt-2 font-semibold"
-                      style={{ fontSize: '0.9em', color: '#888888' }}
-                    >
-                      {t.counterLabel}
-                    </span>
+                    <>
+                      <span
+                        className="mt-2 font-medium uppercase"
+                        style={{ fontSize: '0.7em', color: '#aaaaaa', letterSpacing: '1px' }}
+                      >
+                        Guichet
+                      </span>
+                      <span
+                        className="font-semibold"
+                        style={{ fontSize: '0.9em', color: '#888888' }}
+                      >
+                        {t.counterLabel}
+                      </span>
+                    </>
                   )}
                 </div>
               ))}
@@ -518,31 +548,12 @@ export default function PublicDisplay({
             })()}
           </div>
 
-          {/* Bottom info: appels en cours + en attente */}
+          {/* Bottom info: en attente */}
           <div
             className="absolute bottom-8 left-10 right-10 flex flex-col items-center gap-3"
             style={{ marginBottom: hasTicker && tickerConfig.position === 'bottom' ? `${tickerConfig.height}px` : '0' }}
           >
             <div className="flex flex-wrap items-center justify-center gap-4">
-              {(() => {
-                const currentDisplayCode = data.currentCode ?? lastCalledCode;
-                const filtered = data.servingTickets.filter(
-                  (t) => !currentDisplayCode || t.displayCode !== currentDisplayCode
-                );
-                const shown = showAllCalled ? filtered : filtered.slice(0, 2);
-                return shown.map((t, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
-                    <span className="text-2xl font-black text-primary-700">
-                      {t.displayCode}
-                    </span>
-                    {t.counterLabel && (
-                      <span className="text-sm font-semibold text-gray-500">
-                        {t.counterLabel}
-                      </span>
-                    )}
-                  </div>
-                ));
-              })()}
               {data.waitingCount > 0 && (
                 <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-sm">
                   <span className="text-sm font-semibold uppercase tracking-wider text-gray-400">
@@ -554,21 +565,6 @@ export default function PublicDisplay({
                 </div>
               )}
             </div>
-            {(() => {
-              const c = data.currentCode ?? lastCalledCode;
-              const n = data.servingTickets.filter((t) => !c || t.displayCode !== c).length;
-              return n > 2;
-            })() && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowAllCalled((v) => !v); }}
-                className="rounded-full bg-white/70 px-4 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-white hover:text-gray-700"
-              >
-                {showAllCalled ? 'Voir moins' : `+${(() => {
-                  const c = data.currentCode ?? lastCalledCode;
-                  return data.servingTickets.filter((t) => !c || t.displayCode !== c).length - 2;
-                })()} autres`}
-              </button>
-            )}
           </div>
         </main>
 

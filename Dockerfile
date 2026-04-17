@@ -35,6 +35,8 @@ COPY --from=builder /app/dist/src ./src
 COPY --from=builder /app/node_modules ./node_modules
 RUN chown -R nextjs:nodejs /app/node_modules
 
+RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
