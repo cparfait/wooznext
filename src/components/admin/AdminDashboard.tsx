@@ -11,11 +11,12 @@ import SettingsPanel from './SettingsPanel';
 type Tab = 'stats' | 'services' | 'agents' | 'settings';
 
 interface AdminDashboardProps {
+  userId: string;
   userRole: string;
   userServiceId: string | null;
 }
 
-export default function AdminDashboard({ userRole, userServiceId }: AdminDashboardProps) {
+export default function AdminDashboard({ userId, userRole, userServiceId }: AdminDashboardProps) {
   const router = useRouter();
   const isFullAdmin = userRole === 'ADMIN';
 
@@ -81,7 +82,7 @@ export default function AdminDashboard({ userRole, userServiceId }: AdminDashboa
       <div className="mx-auto max-w-7xl p-4">
         {tab === 'stats' && <StatsPanel serviceScope={isFullAdmin ? null : userServiceId} />}
         {tab === 'services' && <ServicesPanel serviceScope={isFullAdmin ? null : userServiceId} />}
-        {isFullAdmin && tab === 'agents' && <AgentsPanel />}
+        {isFullAdmin && tab === 'agents' && <AgentsPanel currentUserId={userId} />}
         {isFullAdmin && tab === 'settings' && <SettingsPanel />}
       </div>
     </main>

@@ -20,7 +20,7 @@ interface Service {
   prefix: string;
 }
 
-export default function AgentsPanel() {
+export default function AgentsPanel({ currentUserId }: { currentUserId: string }) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -291,7 +291,9 @@ export default function AgentsPanel() {
                 >
                   {editingId === a.id ? 'Fermer' : 'Modifier'}
                 </button>
-                {deleteConfirm === a.id ? (
+                {a.id === currentUserId ? (
+                  <span className="h-8 rounded-lg bg-gray-100 px-3 text-xs font-medium text-gray-400 leading-8">Vous</span>
+                ) : deleteConfirm === a.id ? (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleDelete(a.id)}

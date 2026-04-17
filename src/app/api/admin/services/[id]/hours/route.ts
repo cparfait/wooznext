@@ -7,7 +7,10 @@ const dayHoursSchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6),
   openTime: z.string().regex(/^\d{2}:\d{2}$/, 'Format HH:MM attendu'),
   closeTime: z.string().regex(/^\d{2}:\d{2}$/, 'Format HH:MM attendu'),
+  openTimePm: z.string().nullable().optional(),
+  closeTimePm: z.string().nullable().optional(),
   isClosed: z.boolean(),
+  isClosedPm: z.boolean().optional(),
 });
 
 const updateHoursSchema = z.object({
@@ -24,7 +27,6 @@ export async function GET(
 
     const { id: serviceId } = await params;
 
-    // Verify service exists
     const service = await prisma.service.findUnique({ where: { id: serviceId } });
     if (!service) {
       return NextResponse.json({ error: 'Service introuvable' }, { status: 404 });
@@ -35,13 +37,15 @@ export async function GET(
       orderBy: { dayOfWeek: 'asc' },
     });
 
-    // If no hours exist yet, return defaults
     if (existing.length === 0) {
       const defaults = Array.from({ length: 7 }, (_, i) => ({
         dayOfWeek: i,
         openTime: '08:30',
-        closeTime: '17:00',
+        closeTime: '12:00',
+        openTimePm: '13:30',
+        closeTimePm: '17:00',
         isClosed: i >= 5,
+        isClosedPm: i >= 5,
       }));
       return NextResponse.json({ hours: defaults });
     }
@@ -50,7 +54,10 @@ export async function GET(
       dayOfWeek: h.dayOfWeek,
       openTime: h.openTime,
       closeTime: h.closeTime,
+      openTimePm: h.openTimePm,
+      closeTimePm: h.closeTimePm,
       isClosed: h.isClosed,
+      isClosedPm: h.isClosedPm,
     }));
 
     return NextResponse.json({ hours });
@@ -70,7 +77,6 @@ export async function PUT(
 
     const { id: serviceId } = await params;
 
-    // Verify service exists
     const service = await prisma.service.findUnique({ where: { id: serviceId } });
     if (!service) {
       return NextResponse.json({ error: 'Service introuvable' }, { status: 404 });
@@ -85,7 +91,6 @@ export async function PUT(
       );
     }
 
-    // Upsert all 7 days in a transaction
     await prisma.$transaction(
       parsed.data.hours.map((day) =>
         prisma.openingHours.upsert({
@@ -98,14 +103,20 @@ export async function PUT(
           update: {
             openTime: day.openTime,
             closeTime: day.closeTime,
+            openTimePm: day.openTimePm ?? null,
+            closeTimePm: day.closeTimePm ?? null,
             isClosed: day.isClosed,
+            isClosedPm: day.isClosedPm ?? false,
           },
           create: {
             serviceId,
             dayOfWeek: day.dayOfWeek,
             openTime: day.openTime,
             closeTime: day.closeTime,
+            openTimePm: day.openTimePm ?? null,
+            closeTimePm: day.closeTimePm ?? null,
             isClosed: day.isClosed,
+            isClosedPm: day.isClosedPm ?? false,
           },
         })
       )

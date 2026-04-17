@@ -26,7 +26,10 @@ interface DayHours {
   dayOfWeek: number;
   openTime: string;
   closeTime: string;
+  openTimePm: string | null;
+  closeTimePm: string | null;
   isClosed: boolean;
+  isClosedPm: boolean;
 }
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -35,8 +38,11 @@ function defaultHours(): DayHours[] {
   return Array.from({ length: 7 }, (_, i) => ({
     dayOfWeek: i,
     openTime: '08:30',
-    closeTime: '17:00',
+    closeTime: '12:00',
+    openTimePm: '13:30',
+    closeTimePm: '17:00',
     isClosed: i >= 5,
+    isClosedPm: i >= 5,
   }));
 }
 
@@ -100,33 +106,70 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
   return (
     <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
       {hours.map((day) => (
-        <div key={day.dayOfWeek} className="flex items-center gap-3 text-sm">
-          <span className="w-20 font-medium text-gray-700">{DAY_NAMES[day.dayOfWeek]}</span>
-          <label className="flex items-center gap-1 text-xs text-gray-500">
-            <input
-              type="checkbox"
-              checked={day.isClosed}
-              onChange={(e) => updateDay(day.dayOfWeek, 'isClosed', e.target.checked)}
-              className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
-            />
-            Ferme
-          </label>
+        <div key={day.dayOfWeek} className="space-y-1">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="w-20 font-medium text-gray-700">{DAY_NAMES[day.dayOfWeek]}</span>
+            <label className="flex items-center gap-1 text-xs text-gray-500">
+              <input
+                type="checkbox"
+                checked={day.isClosed}
+                onChange={(e) => {
+                  updateDay(day.dayOfWeek, 'isClosed', e.target.checked);
+                  if (e.target.checked) updateDay(day.dayOfWeek, 'isClosedPm', true);
+                }}
+                className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+              />
+              Ferme
+            </label>
+          </div>
           {!day.isClosed && (
-            <>
-              <input
-                type="time"
-                value={day.openTime}
-                onChange={(e) => updateDay(day.dayOfWeek, 'openTime', e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
-              />
-              <span className="text-xs text-gray-400">-</span>
-              <input
-                type="time"
-                value={day.closeTime}
-                onChange={(e) => updateDay(day.dayOfWeek, 'closeTime', e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
-              />
-            </>
+            <div className="ml-20 space-y-1">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="w-12 text-gray-500">Matin</span>
+                <input
+                  type="time"
+                  value={day.openTime}
+                  onChange={(e) => updateDay(day.dayOfWeek, 'openTime', e.target.value)}
+                  className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                />
+                <span className="text-gray-400">-</span>
+                <input
+                  type="time"
+                  value={day.closeTime}
+                  onChange={(e) => updateDay(day.dayOfWeek, 'closeTime', e.target.value)}
+                  className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="w-12 text-gray-500">Ap.-m.</span>
+                <label className="flex items-center gap-1 text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={day.isClosedPm}
+                    onChange={(e) => updateDay(day.dayOfWeek, 'isClosedPm', e.target.checked)}
+                    className="rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                  />
+                  Ferme
+                </label>
+                {!day.isClosedPm && (
+                  <>
+                    <input
+                      type="time"
+                      value={day.openTimePm || '13:30'}
+                      onChange={(e) => updateDay(day.dayOfWeek, 'openTimePm', e.target.value)}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                    />
+                    <span className="text-gray-400">-</span>
+                    <input
+                      type="time"
+                      value={day.closeTimePm || '17:00'}
+                      onChange={(e) => updateDay(day.dayOfWeek, 'closeTimePm', e.target.value)}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none"
+                    />
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </div>
       ))}

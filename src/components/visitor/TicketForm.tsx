@@ -7,7 +7,10 @@ interface DayHours {
   dayOfWeek: number;
   openTime: string;
   closeTime: string;
+  openTimePm: string | null;
+  closeTimePm: string | null;
   isClosed: boolean;
+  isClosedPm: boolean;
 }
 
 const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -16,7 +19,6 @@ function isServiceOpen(hours: DayHours[]): { open: boolean; hours: DayHours[] } 
   if (!hours || hours.length === 0) return { open: true, hours: [] };
 
   const now = new Date();
-  // JS: 0=Sunday, convert to our format 0=Monday
   const jsDay = now.getDay();
   const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
 
@@ -26,11 +28,16 @@ function isServiceOpen(hours: DayHours[]): { open: boolean; hours: DayHours[] } 
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   const currentTime = `${hh}:${mm}`;
-  if (currentTime < todayHours.openTime || currentTime >= todayHours.closeTime) {
-    return { open: false, hours };
+
+  const inMorning = currentTime >= todayHours.openTime && currentTime < todayHours.closeTime;
+  if (inMorning) return { open: true, hours };
+
+  if (todayHours.openTimePm && todayHours.closeTimePm && !todayHours.isClosedPm) {
+    const inAfternoon = currentTime >= todayHours.openTimePm && currentTime < todayHours.closeTimePm;
+    if (inAfternoon) return { open: true, hours };
   }
 
-  return { open: true, hours };
+  return { open: false, hours };
 }
 
 export default function TicketForm() {
@@ -183,7 +190,14 @@ export default function TicketForm() {
                     <div key={day.dayOfWeek} className="flex justify-between text-sm">
                       <span className="font-medium text-gray-700">{DAY_NAMES[day.dayOfWeek]}</span>
                       <span className={day.isClosed ? 'text-red-500' : 'text-gray-600'}>
-                        {day.isClosed ? 'Ferme' : `${day.openTime} - ${day.closeTime}`}
+                        {day.isClosed ? 'Ferme' : (
+                          <>
+                            {day.openTime}-{day.closeTime}
+                            {day.openTimePm && day.closeTimePm && !day.isClosedPm && (
+                              <> / {day.openTimePm}-{day.closeTimePm}</>
+                            )}
+                          </>
+                        )}
                       </span>
                     </div>
                   ))}

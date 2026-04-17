@@ -27,7 +27,10 @@ export async function GET(
       dayOfWeek: h.dayOfWeek,
       openTime: h.openTime,
       closeTime: h.closeTime,
+      openTimePm: h.openTimePm,
+      closeTimePm: h.closeTimePm,
       isClosed: h.isClosed,
+      isClosedPm: h.isClosedPm,
     }));
 
     return NextResponse.json({ hours });

@@ -82,6 +82,7 @@ export async function DELETE(
     const agent = await prisma.agent.findUnique({ where: { id } });
     if (!agent) return NextResponse.json({ error: 'Agent introuvable' }, { status: 404 });
     if (agent.isAnonymized) return NextResponse.json({ error: 'Impossible de supprimer cet agent' }, { status: 400 });
+    if (id === session.user.id) return NextResponse.json({ error: 'Vous ne pouvez pas supprimer votre propre compte' }, { status: 400 });
 
     const servingCount = await prisma.ticket.count({
       where: { calledById: id, status: 'SERVING' },

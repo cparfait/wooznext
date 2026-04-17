@@ -148,12 +148,15 @@ model DailySequence {
 
 /// Horaires d'ouverture par service et par jour de la semaine
 model OpeningHours {
-  id        String  @id @default(cuid())
-  serviceId String  @map("service_id")
-  dayOfWeek Int     // 0 = Lundi, 6 = Dimanche
-  openTime  String  @map("open_time") // Format "HH:MM"
-  closeTime String  @map("close_time") // Format "HH:MM"
-  isClosed  Boolean @default(false) @map("is_closed")
+  id              String  @id @default(cuid())
+  serviceId       String  @map("service_id")
+  dayOfWeek       Int     // 0 = Lundi, 6 = Dimanche
+  openTime        String  @map("open_time") // Format "HH:MM" - debut matin
+  closeTime       String  @map("close_time") // Format "HH:MM" - fin matin
+  openTimePm      String? @map("open_time_pm") // Format "HH:MM" - debut apres-midi
+  closeTimePm     String? @map("close_time_pm") // Format "HH:MM" - fin apres-midi
+  isClosed        Boolean @default(false) @map("is_closed")
+  isClosedPm      Boolean @default(false) @map("is_closed_pm")
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 

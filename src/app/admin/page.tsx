@@ -12,6 +12,7 @@ export default async function AdminPage() {
 
   return (
     <AdminDashboard
+      userId={session.user.id}
       userRole={session.user.role}
       userServiceId={session.user.serviceId ?? null}
     />
