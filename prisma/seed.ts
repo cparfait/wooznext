@@ -4,6 +4,11 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
+if (process.env.NODE_ENV === 'production') {
+  console.log('Seed skipped in production. Use /setup to create the first admin.');
+  process.exit(0);
+}
+
 async function main() {
   console.log('Seeding database...');
 

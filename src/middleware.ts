@@ -64,6 +64,7 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         const pathname = req.nextUrl.pathname;
+        if (pathname.startsWith('/setup')) return true;
         if (pathname.startsWith('/agent/login')) return true;
         if (pathname.startsWith('/agent')) return !!token;
         if (pathname.startsWith('/admin')) return !!token;
