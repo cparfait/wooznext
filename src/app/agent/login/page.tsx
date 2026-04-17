@@ -127,8 +127,7 @@ function LoginForm() {
     }
 
     if (role === 'ADMIN') {
-      // Admins skip counter selection entirely
-      router.push(callbackUrl);
+      router.push('/admin');
       return;
     }
 
