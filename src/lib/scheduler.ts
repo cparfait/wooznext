@@ -23,13 +23,13 @@ async function runMidnightCleanup(): Promise<string> {
   });
   const noShow = await prisma.ticket.updateMany({
     where: { status: TicketStatus.SERVING },
-    data: { status: TicketStatus.NO_SHOW, completedAt: now },
+    data: { status: TicketStatus.COMPLETED, completedAt: now },
   });
   const cleared = await prisma.counter.updateMany({
     where: { currentTicketId: { not: null } },
     data: { currentTicketId: null },
   });
-  return `${cancelled.count} ticket(s) annules, ${noShow.count} absent(s), ${cleared.count} guichet(s) libere(s)`;
+  return `${cancelled.count} ticket(s) annules, ${noShow.count} termine(s), ${cleared.count} guichet(s) libere(s)`;
 }
 
 async function runRgpdPurge(): Promise<string> {
@@ -37,22 +37,19 @@ async function runRgpdPurge(): Promise<string> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
 
-  const deletedTickets = await prisma.ticket.deleteMany({
+  const anonymized = await prisma.visitor.updateMany({
     where: {
       createdAt: { lt: cutoff },
-      status: { in: [TicketStatus.COMPLETED, TicketStatus.CANCELLED, TicketStatus.NO_SHOW] },
+      phone: { not: '***ANONYMIZED***' },
     },
+    data: { phone: '***ANONYMIZED***' },
   });
+
   const deletedSequences = await prisma.dailySequence.deleteMany({
     where: { date: { lt: cutoff } },
   });
-  const deletedVisitors = await prisma.visitor.deleteMany({
-    where: {
-      tickets: { none: {} },
-      createdAt: { lt: cutoff },
-    },
-  });
-  return `${deletedTickets.count} ticket(s), ${deletedSequences.count} sequence(s), ${deletedVisitors.count} visiteur(s) supprimes`;
+
+  return `${anonymized.count} visiteur(s) anonymise(s), ${deletedSequences.count} sequence(s) supprimee(s)`;
 }
 
 async function executeJob(name: string): Promise<void> {
