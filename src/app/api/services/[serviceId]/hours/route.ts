@@ -30,6 +30,7 @@ export async function GET(
       openTimePm: h.openTimePm,
       closeTimePm: h.closeTimePm,
       isClosed: h.isClosed,
+      isClosedAm: h.isClosedAm,
       isClosedPm: h.isClosedPm,
     }));
 

@@ -10,6 +10,7 @@ interface DayHours {
   openTimePm: string | null;
   closeTimePm: string | null;
   isClosed: boolean;
+  isClosedAm: boolean;
   isClosedPm: boolean;
 }
 
@@ -29,8 +30,10 @@ function isServiceOpen(hours: DayHours[]): { open: boolean; hours: DayHours[] } 
   const mm = String(now.getMinutes()).padStart(2, '0');
   const currentTime = `${hh}:${mm}`;
 
-  const inMorning = currentTime >= todayHours.openTime && currentTime < todayHours.closeTime;
-  if (inMorning) return { open: true, hours };
+  if (!todayHours.isClosedAm) {
+    const inMorning = currentTime >= todayHours.openTime && currentTime < todayHours.closeTime;
+    if (inMorning) return { open: true, hours };
+  }
 
   if (todayHours.openTimePm && todayHours.closeTimePm && !todayHours.isClosedPm) {
     const inAfternoon = currentTime >= todayHours.openTimePm && currentTime < todayHours.closeTimePm;
@@ -192,10 +195,11 @@ export default function TicketForm() {
                       <span className={day.isClosed ? 'text-red-500' : 'text-gray-600'}>
                         {day.isClosed ? 'Ferme' : (
                           <>
-                            {day.openTime}-{day.closeTime}
-                            {day.openTimePm && day.closeTimePm && !day.isClosedPm && (
-                              <> / {day.openTimePm}-{day.closeTimePm}</>
-                            )}
+                            {!day.isClosedAm && <>{day.openTime}-{day.closeTime}</>}
+                            {day.isClosedAm && <span className="text-orange-500">Matin ferme</span>}
+                            {' / '}
+                            {!day.isClosedPm && day.openTimePm && day.closeTimePm && <>{day.openTimePm}-{day.closeTimePm}</>}
+                            {day.isClosedPm && <span className="text-orange-500">Ap.-m. ferme</span>}
                           </>
                         )}
                       </span>

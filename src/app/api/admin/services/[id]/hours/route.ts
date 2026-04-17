@@ -10,6 +10,7 @@ const dayHoursSchema = z.object({
   openTimePm: z.string().nullable().optional(),
   closeTimePm: z.string().nullable().optional(),
   isClosed: z.boolean(),
+  isClosedAm: z.boolean().optional(),
   isClosedPm: z.boolean().optional(),
 });
 
@@ -45,6 +46,7 @@ export async function GET(
         openTimePm: '13:30',
         closeTimePm: '17:00',
         isClosed: i >= 5,
+        isClosedAm: i >= 5,
         isClosedPm: i >= 5,
       }));
       return NextResponse.json({ hours: defaults });
@@ -57,6 +59,7 @@ export async function GET(
       openTimePm: h.openTimePm,
       closeTimePm: h.closeTimePm,
       isClosed: h.isClosed,
+      isClosedAm: h.isClosedAm,
       isClosedPm: h.isClosedPm,
     }));
 
@@ -106,6 +109,7 @@ export async function PUT(
             openTimePm: day.openTimePm ?? null,
             closeTimePm: day.closeTimePm ?? null,
             isClosed: day.isClosed,
+            isClosedAm: day.isClosedAm ?? false,
             isClosedPm: day.isClosedPm ?? false,
           },
           create: {
@@ -116,6 +120,7 @@ export async function PUT(
             openTimePm: day.openTimePm ?? null,
             closeTimePm: day.closeTimePm ?? null,
             isClosed: day.isClosed,
+            isClosedAm: day.isClosedAm ?? false,
             isClosedPm: day.isClosedPm ?? false,
           },
         })

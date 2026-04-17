@@ -29,6 +29,7 @@ interface DayHours {
   openTimePm: string | null;
   closeTimePm: string | null;
   isClosed: boolean;
+  isClosedAm: boolean;
   isClosedPm: boolean;
 }
 
@@ -42,6 +43,7 @@ function defaultHours(): DayHours[] {
     openTimePm: '13:30',
     closeTimePm: '17:00',
     isClosed: i >= 5,
+    isClosedAm: i >= 5,
     isClosedPm: i >= 5,
   }));
 }
@@ -113,21 +115,25 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
             <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-500">Ferme</span>
           ) : (
             <div className="flex items-center gap-1.5">
-              <div className={`flex items-center gap-1 rounded px-1.5 py-0.5 ${day.isClosedPm ? 'bg-green-50' : 'bg-green-50'}`}>
-                <input
-                  type="time"
-                  value={day.openTime}
-                  onChange={(e) => updateDay(day.dayOfWeek, 'openTime', e.target.value)}
-                  className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
-                />
-                <span className="text-xs text-gray-300">&minus;</span>
-                <input
-                  type="time"
-                  value={day.closeTime}
-                  onChange={(e) => updateDay(day.dayOfWeek, 'closeTime', e.target.value)}
-                  className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
-                />
-              </div>
+              {day.isClosedAm ? (
+                <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-500">Matin ferme</span>
+              ) : (
+                <div className="flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5">
+                  <input
+                    type="time"
+                    value={day.openTime}
+                    onChange={(e) => updateDay(day.dayOfWeek, 'openTime', e.target.value)}
+                    className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                  />
+                  <span className="text-xs text-gray-300">&minus;</span>
+                  <input
+                    type="time"
+                    value={day.closeTime}
+                    onChange={(e) => updateDay(day.dayOfWeek, 'closeTime', e.target.value)}
+                    className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+              )}
 
               {day.isClosedPm ? (
                 <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-500">Ap.-m. ferme</span>
@@ -153,23 +159,43 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
 
           <div className="ml-auto flex items-center gap-1.5">
             {!day.isClosed && (
-              <button
-                type="button"
-                onClick={() => updateDay(day.dayOfWeek, 'isClosedPm', !day.isClosedPm)}
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                  day.isClosedPm
-                    ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-              >
-                Ap.-m. ferme
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => updateDay(day.dayOfWeek, 'isClosedAm', !day.isClosedAm)}
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                    day.isClosedAm
+                      ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  Matin ferme
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateDay(day.dayOfWeek, 'isClosedPm', !day.isClosedPm)}
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                    day.isClosedPm
+                      ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  Ap.-m. ferme
+                </button>
+              </>
             )}
             <button
               type="button"
               onClick={() => {
-                updateDay(day.dayOfWeek, 'isClosed', !day.isClosed);
-                if (!day.isClosed) updateDay(day.dayOfWeek, 'isClosedPm', true);
+                const v = !day.isClosed;
+                updateDay(day.dayOfWeek, 'isClosed', v);
+                if (v) {
+                  updateDay(day.dayOfWeek, 'isClosedAm', true);
+                  updateDay(day.dayOfWeek, 'isClosedPm', true);
+                } else {
+                  updateDay(day.dayOfWeek, 'isClosedAm', false);
+                  updateDay(day.dayOfWeek, 'isClosedPm', false);
+                }
               }}
               className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
                 day.isClosed

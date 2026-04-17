@@ -156,6 +156,7 @@ model OpeningHours {
   openTimePm      String? @map("open_time_pm") // Format "HH:MM" - debut apres-midi
   closeTimePm     String? @map("close_time_pm") // Format "HH:MM" - fin apres-midi
   isClosed        Boolean @default(false) @map("is_closed")
+  isClosedAm      Boolean @default(false) @map("is_closed_am")
   isClosedPm      Boolean @default(false) @map("is_closed_pm")
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
