@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import TicketForm from '@/components/visitor/TicketForm';
+import { prisma } from '@/lib/prisma';
 
 function VisitorPage() {
   return (
@@ -23,5 +24,13 @@ export default async function HomePage({
   if (service) {
     return <VisitorPage />;
   }
+
+  const adminCount = await prisma.agent.count({
+    where: { role: 'ADMIN', isAnonymized: false },
+  });
+  if (adminCount === 0) {
+    redirect('/setup');
+  }
+
   redirect('/agent/login');
 }
