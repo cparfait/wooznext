@@ -9,10 +9,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wooznext"]
+      test: ["CMD-SHELL", "pg_isready -U wooznext -d wooznext"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   app:
     image: ghcr.io/cparfait/wooznext:${IMAGE_TAG:-latest}

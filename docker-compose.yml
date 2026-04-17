@@ -10,10 +10,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wooznext"]
+      test: ["CMD-SHELL", "pg_isready -U wooznext -d wooznext"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
     # NOT exposed on host in production (internal network only)
 
   # Next.js application
