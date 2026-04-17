@@ -49,8 +49,14 @@ export default function SettingsPanel() {
       if (res.ok) {
         const data = await res.json();
         setCronJobs(data.jobs);
+        setCronMsg(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCronMsg({ type: 'error', text: data.error || `Erreur ${res.status}` });
       }
-    } catch {}
+    } catch (err) {
+      setCronMsg({ type: 'error', text: 'Impossible de charger les taches planifiees.' });
+    }
     setCronLoading(false);
   }
 
@@ -182,7 +188,7 @@ export default function SettingsPanel() {
           <div className="flex justify-center py-6">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
           </div>
-        ) : (
+        ) : cronJobs.length > 0 ? (
           <div className="space-y-4">
             {cronJobs.map((job) => (
               <div key={job.name} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -257,6 +263,16 @@ export default function SettingsPanel() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-800">
+              Aucune tache planifiee chargee.
+            </p>
+            <p className="mt-1 text-xs text-amber-600">
+              Verifiez que la base de donnees est accessible et que les migrations sont appliquees.
+              Relancez le conteneur si necessaire.
+            </p>
           </div>
         )}
 
