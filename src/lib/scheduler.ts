@@ -1,7 +1,6 @@
 import * as cron from 'node-cron';
-import { PrismaClient, TicketStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { TicketStatus } from '@prisma/client';
+import { prisma } from './prisma';
 
 const DEFAULT_JOBS = [
   {
