@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN ./node_modules/.bin/prisma generate
 RUN npm run build
-RUN npx tsc server.ts src/lib/socket-server.ts src/lib/scheduler.ts --outDir dist --esModuleInterop --module commonjs --moduleResolution node --target es2020 --skipLibCheck
+RUN npx tsc server.ts src/lib/socket-server.ts src/lib/scheduler.ts src/lib/prisma.ts --outDir dist --esModuleInterop --module commonjs --moduleResolution node --target es2020 --skipLibCheck
 
 # --- Stage 3: Runner ---
 FROM node:22-alpine AS runner
