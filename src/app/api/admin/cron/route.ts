@@ -3,7 +3,7 @@ import { z } from 'zod';
 import cron from 'node-cron';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
-import { reloadScheduler, runJobNow } from '@/lib/scheduler';
+import { reloadScheduler, runJobNow, ensureJobs } from '@/lib/scheduler';
 
 const JOB_LABELS: Record<string, string> = {
   midnight_cleanup: 'Nettoyage minuit',
@@ -17,6 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
+    await ensureJobs();
     const jobs = await prisma.cronJob.findMany({ orderBy: { name: 'asc' } });
     const result = jobs.map((j) => ({
       ...j,

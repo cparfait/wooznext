@@ -16,20 +16,6 @@ const DEFAULT_JOBS = [
 
 const activeJobs = new Map<string, cron.ScheduledTask>();
 
-async function ensureJobs() {
-  for (const def of DEFAULT_JOBS) {
-    await prisma.cronJob.upsert({
-      where: { name: def.name },
-      update: {},
-      create: {
-        name: def.name,
-        schedule: def.schedule,
-        enabled: true,
-      },
-    });
-  }
-}
-
 async function runMidnightCleanup(): Promise<string> {
   const now = new Date();
   const cancelled = await prisma.ticket.updateMany({
@@ -125,6 +111,20 @@ function startJob(job: { name: string; schedule: string; enabled: boolean }) {
   });
   activeJobs.set(job.name, task);
   console.log(`[Cron] ${job.name}: schedule="${job.schedule}" enabled=true`);
+}
+
+export async function ensureJobs() {
+  for (const def of DEFAULT_JOBS) {
+    await prisma.cronJob.upsert({
+      where: { name: def.name },
+      update: {},
+      create: {
+        name: def.name,
+        schedule: def.schedule,
+        enabled: true,
+      },
+    });
+  }
 }
 
 export async function startScheduler() {
