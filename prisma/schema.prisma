@@ -174,8 +174,8 @@ model CronJob {
   lastRunAt     DateTime? @map("last_run_at")
   lastRunStatus String?  @map("last_run_status")
   lastRunResult String?  @map("last_run_result")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("cron_jobs")
 }
