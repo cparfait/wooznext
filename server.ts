@@ -1,7 +1,8 @@
-import { createServer } from 'http';
+import { createServer, IncomingMessage } from 'http';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
+import { getToken } from 'next-auth/jwt';
 import { setSocketIO } from './src/lib/socket-server';
 import { startScheduler } from './src/lib/scheduler';
 
@@ -125,13 +126,38 @@ app.prepare().then(() => {
         return;
       }
 
+      // Verify the caller is actually authenticated as this agent by reading
+      // the NextAuth JWT from the handshake cookies. Prevents impersonation.
+      try {
+        const fakeReq = {
+          headers: {
+            cookie: socket.handshake.headers.cookie ?? '',
+          },
+          cookies: {},
+        } as unknown as IncomingMessage & { cookies: Partial<Record<string, string>> };
+        const token = await getToken({
+          req: fakeReq,
+          secret: process.env.NEXTAUTH_SECRET,
+          secureCookie: process.env.NEXTAUTH_URL?.startsWith('https') ?? false,
+        });
+        if (!token || token.id !== agentId) {
+          console.warn(`[Socket.IO] Unauthenticated agent:register from ${socket.id} for ${agentId}`);
+          socket.emit('agent:force-disconnect');
+          socket.disconnect(true);
+          return;
+        }
+      } catch (err) {
+        console.error(`[Socket.IO] Error validating session for ${agentId}:`, err);
+        return;
+      }
+
       try {
         const agent = await prisma.agent.findUnique({
           where: { id: agentId },
-          select: { id: true },
+          select: { id: true, isActive: true },
         });
-        if (!agent) {
-          console.warn(`[Socket.IO] Agent not found: ${agentId}`);
+        if (!agent || !agent.isActive) {
+          console.warn(`[Socket.IO] Agent not found or inactive: ${agentId}`);
           return;
         }
       } catch (err) {

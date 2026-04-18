@@ -10,6 +10,8 @@ const JOB_LABELS: Record<string, string> = {
   rgpd_purge: 'Purge RGPD (30 jours)',
 };
 
+const ALLOWED_JOB_NAMES = new Set(Object.keys(JOB_LABELS));
+
 export async function GET() {
   try {
     const session = await getAdminSession();
@@ -32,7 +34,7 @@ export async function GET() {
 }
 
 const updateJobSchema = z.object({
-  name: z.string(),
+  name: z.string().refine((v) => ALLOWED_JOB_NAMES.has(v), 'Tache inconnue'),
   schedule: z.string().refine((v) => cron.validate(v), 'Expression cron invalide'),
   enabled: z.boolean(),
 });
@@ -76,6 +78,9 @@ export async function POST(req: NextRequest) {
     const { name } = await req.json();
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'Nom de tache requis' }, { status: 400 });
+    }
+    if (!ALLOWED_JOB_NAMES.has(name)) {
+      return NextResponse.json({ error: 'Tache non autorisee' }, { status: 403 });
     }
 
     const job = await prisma.cronJob.findUnique({ where: { name } });
