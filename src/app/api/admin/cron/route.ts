@@ -8,7 +8,7 @@ import { logErrorWithId } from '@/lib/error-id';
 
 const JOB_LABELS: Record<string, string> = {
   midnight_cleanup: 'Nettoyage minuit',
-  rgpd_purge: 'Purge RGPD (30 jours)',
+  rgpd_purge: 'Anonymisation RGPD (donnees > 30j)',
 };
 
 const ALLOWED_JOB_NAMES = new Set(Object.keys(JOB_LABELS));
