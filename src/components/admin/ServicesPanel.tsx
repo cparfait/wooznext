@@ -289,7 +289,7 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
             </button>
 
             <span
-              className={`w-20 flex-shrink-0 text-sm font-medium ${
+              className={`w-24 flex-shrink-0 text-sm font-medium ${
                 day.isClosed ? 'text-gray-400' : 'text-gray-800'
               }`}
             >
