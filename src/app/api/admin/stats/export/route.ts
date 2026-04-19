@@ -4,6 +4,7 @@ import 'jspdf-autotable';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { TicketStatus, Prisma } from '@prisma/client';
+import { logErrorWithId } from '@/lib/error-id';
 
 function formatTime(seconds: number): string {
   if (!seconds) return '0min 00s';
@@ -215,7 +216,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error exporting PDF:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const errorId = logErrorWithId('stats:export', error);
+    return NextResponse.json({ error: 'Erreur serveur', errorId }, { status: 500 });
   }
 }

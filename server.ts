@@ -5,6 +5,9 @@ import { PrismaClient } from '@prisma/client';
 import { getToken } from 'next-auth/jwt';
 import { setSocketIO } from './src/lib/socket-server';
 import { startScheduler } from './src/lib/scheduler';
+import { validateEnv } from './src/lib/env-validation';
+
+validateEnv();
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -19,7 +22,7 @@ const MAX_CONNECTIONS_PER_IP = 20;
 
 const ipConnectionCount = new Map<string, number>();
 
-const CUID_REGEX = /^[a-z0-9]{20,30}$/;
+const CUID_REGEX = /^c[a-z0-9]{20,30}$/;
 
 function parseUrl(url: string) {
   const parsed = new URL(url, 'http://localhost');

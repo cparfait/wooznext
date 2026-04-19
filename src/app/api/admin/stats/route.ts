@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { TicketStatus, Prisma } from '@prisma/client';
+import { logErrorWithId } from '@/lib/error-id';
 
 function isValidUUID(v: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -285,7 +286,7 @@ export async function GET(request: NextRequest) {
       chartByDayOfWeek,
     });
   } catch (error) {
-    console.error('Error fetching stats:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const errorId = logErrorWithId('stats:fetch', error);
+    return NextResponse.json({ error: 'Erreur serveur', errorId }, { status: 500 });
   }
 }

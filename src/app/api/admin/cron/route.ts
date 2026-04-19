@@ -4,6 +4,7 @@ import cron from 'node-cron';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { reloadScheduler, runJobNow, ensureJobs } from '@/lib/scheduler';
+import { logErrorWithId } from '@/lib/error-id';
 
 const JOB_LABELS: Record<string, string> = {
   midnight_cleanup: 'Nettoyage minuit',
@@ -28,8 +29,8 @@ export async function GET() {
 
     return NextResponse.json({ jobs: result });
   } catch (error) {
-    console.error('Error fetching cron jobs:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const errorId = logErrorWithId('cron:list', error);
+    return NextResponse.json({ error: 'Erreur serveur', errorId }, { status: 500 });
   }
 }
 
@@ -63,8 +64,8 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating cron job:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const errorId = logErrorWithId('cron:update', error);
+    return NextResponse.json({ error: 'Erreur serveur', errorId }, { status: 500 });
   }
 }
 
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
     const result = await runJobNow(name);
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Error running cron job:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const errorId = logErrorWithId('cron:run', error);
+    return NextResponse.json({ error: 'Erreur serveur', errorId }, { status: 500 });
   }
 }
