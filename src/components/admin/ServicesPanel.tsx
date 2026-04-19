@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface Service {
   id: string;
@@ -48,6 +48,123 @@ function defaultHours(): DayHours[] {
   }));
 }
 
+function TimeSlot({
+  label,
+  isClosed,
+  start,
+  end,
+  onStartChange,
+  onEndChange,
+  onToggleClosed,
+}: {
+  label: string;
+  isClosed: boolean;
+  start: string;
+  end: string;
+  onStartChange: (v: string) => void;
+  onEndChange: (v: string) => void;
+  onToggleClosed: () => void;
+}) {
+  if (isClosed) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleClosed}
+        className="inline-flex items-center gap-1 rounded-full border border-dashed border-gray-300 px-3 py-1 text-xs font-medium text-gray-400 hover:border-primary-400 hover:text-primary-600"
+      >
+        <span aria-hidden>+</span> {label}
+      </button>
+    );
+  }
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 py-1 pl-3 pr-1 ring-1 ring-primary-100">
+      <span className="text-xs font-semibold uppercase tracking-wide text-primary-700">{label}</span>
+      <input
+        type="time"
+        value={start}
+        onChange={(e) => onStartChange(e.target.value)}
+        className="h-6 border-none bg-transparent px-0 text-xs font-medium text-primary-800 focus:outline-none focus:ring-0"
+      />
+      <span className="text-primary-400" aria-hidden>&rarr;</span>
+      <input
+        type="time"
+        value={end}
+        onChange={(e) => onEndChange(e.target.value)}
+        className="h-6 border-none bg-transparent px-0 text-xs font-medium text-primary-800 focus:outline-none focus:ring-0"
+      />
+      <button
+        type="button"
+        onClick={onToggleClosed}
+        title={`Fermer ${label.toLowerCase()}`}
+        className="ml-0.5 rounded-full p-1 text-primary-400 hover:bg-red-100 hover:text-red-500"
+      >
+        <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+          <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function CopyMenu({
+  onCopyToAll,
+  onCopyToWeekdays,
+}: {
+  onCopyToAll: () => void;
+  onCopyToWeekdays: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Copier les horaires"
+        className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+      >
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-10 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              onCopyToAll();
+              setOpen(false);
+            }}
+            className="block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50"
+          >
+            Copier a tous les jours
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onCopyToWeekdays();
+              setOpen(false);
+            }}
+            className="block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50"
+          >
+            Copier a Lun-Ven
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
   const [hours, setHours] = useState<DayHours[]>(defaultHours());
   const [saving, setSaving] = useState(false);
@@ -79,6 +196,37 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
     );
   }
 
+  function toggleDay(dayOfWeek: number) {
+    setHours((prev) =>
+      prev.map((d) => {
+        if (d.dayOfWeek !== dayOfWeek) return d;
+        const newClosed = !d.isClosed;
+        return { ...d, isClosed: newClosed, isClosedAm: newClosed, isClosedPm: newClosed };
+      })
+    );
+  }
+
+  function copyDayTo(sourceDay: number, predicate: (dayOfWeek: number) => boolean) {
+    const source = hours.find((d) => d.dayOfWeek === sourceDay);
+    if (!source) return;
+    setHours((prev) =>
+      prev.map((d) =>
+        predicate(d.dayOfWeek)
+          ? {
+              ...d,
+              openTime: source.openTime,
+              closeTime: source.closeTime,
+              openTimePm: source.openTimePm,
+              closeTimePm: source.closeTimePm,
+              isClosed: source.isClosed,
+              isClosedAm: source.isClosedAm,
+              isClosedPm: source.isClosedPm,
+            }
+          : d
+      )
+    );
+  }
+
   async function handleSave() {
     setSaving(true);
     setMessage(null);
@@ -105,110 +253,87 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
     return <p className="py-3 text-center text-xs text-gray-400">Chargement des horaires...</p>;
   }
 
+  const openCount = hours.filter((d) => !d.isClosed).length;
+
   return (
-    <div className="mt-3 space-y-1 border-t border-gray-100 pt-3">
-      {hours.map((day) => (
-        <div key={day.dayOfWeek} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50">
-          <span className="w-20 text-sm font-semibold text-gray-700">{DAY_NAMES[day.dayOfWeek]}</span>
+    <div className="mt-3 border-t border-gray-100 pt-3">
+      <div className="mb-2 flex items-center justify-between px-2">
+        <span className="text-xs text-gray-500">
+          {openCount}/7 jour{openCount > 1 ? 's' : ''} ouvert{openCount > 1 ? 's' : ''}
+        </span>
+      </div>
 
-          {day.isClosed ? (
-            <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-500">Ferme</span>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              {day.isClosedAm ? (
-                <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-500">Matin ferme</span>
-              ) : (
-                <div className="flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5">
-                  <input
-                    type="time"
-                    value={day.openTime}
-                    onChange={(e) => updateDay(day.dayOfWeek, 'openTime', e.target.value)}
-                    className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
-                  />
-                  <span className="text-xs text-gray-300">&minus;</span>
-                  <input
-                    type="time"
-                    value={day.closeTime}
-                    onChange={(e) => updateDay(day.dayOfWeek, 'closeTime', e.target.value)}
-                    className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
-                  />
-                </div>
-              )}
+      <div className="space-y-0.5">
+        {hours.map((day) => (
+          <div
+            key={day.dayOfWeek}
+            className={`group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors ${
+              day.isClosed ? 'bg-gray-50/60' : 'hover:bg-gray-50'
+            }`}
+          >
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!day.isClosed}
+              aria-label={`${DAY_NAMES[day.dayOfWeek]} ${day.isClosed ? 'ferme' : 'ouvert'}`}
+              onClick={() => toggleDay(day.dayOfWeek)}
+              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+                day.isClosed ? 'bg-gray-200' : 'bg-primary-500'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                  day.isClosed ? 'translate-x-0.5' : 'translate-x-[18px]'
+                }`}
+              />
+            </button>
 
-              {day.isClosedPm ? (
-                <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-500">Ap.-m. ferme</span>
+            <span
+              className={`w-20 flex-shrink-0 text-sm font-medium ${
+                day.isClosed ? 'text-gray-400' : 'text-gray-800'
+              }`}
+            >
+              {DAY_NAMES[day.dayOfWeek]}
+            </span>
+
+            <div className="min-w-0 flex-1">
+              {day.isClosed ? (
+                <span className="text-xs italic text-gray-400">Ferme toute la journee</span>
               ) : (
-                <div className="flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5">
-                  <input
-                    type="time"
-                    value={day.openTimePm || '13:30'}
-                    onChange={(e) => updateDay(day.dayOfWeek, 'openTimePm', e.target.value)}
-                    className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                <div className="flex flex-wrap items-center gap-2">
+                  <TimeSlot
+                    label="Matin"
+                    isClosed={day.isClosedAm}
+                    start={day.openTime}
+                    end={day.closeTime}
+                    onStartChange={(v) => updateDay(day.dayOfWeek, 'openTime', v)}
+                    onEndChange={(v) => updateDay(day.dayOfWeek, 'closeTime', v)}
+                    onToggleClosed={() => updateDay(day.dayOfWeek, 'isClosedAm', !day.isClosedAm)}
                   />
-                  <span className="text-xs text-gray-300">&minus;</span>
-                  <input
-                    type="time"
-                    value={day.closeTimePm || '17:00'}
-                    onChange={(e) => updateDay(day.dayOfWeek, 'closeTimePm', e.target.value)}
-                    className="h-7 rounded border border-gray-200 bg-white px-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                  <TimeSlot
+                    label="Ap.-m."
+                    isClosed={day.isClosedPm}
+                    start={day.openTimePm || '13:30'}
+                    end={day.closeTimePm || '17:00'}
+                    onStartChange={(v) => updateDay(day.dayOfWeek, 'openTimePm', v)}
+                    onEndChange={(v) => updateDay(day.dayOfWeek, 'closeTimePm', v)}
+                    onToggleClosed={() => updateDay(day.dayOfWeek, 'isClosedPm', !day.isClosedPm)}
                   />
                 </div>
               )}
             </div>
-          )}
 
-          <div className="ml-auto flex items-center gap-1.5">
-            {!day.isClosed && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => updateDay(day.dayOfWeek, 'isClosedAm', !day.isClosedAm)}
-                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                    day.isClosedAm
-                      ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  Matin ferme
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateDay(day.dayOfWeek, 'isClosedPm', !day.isClosedPm)}
-                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                    day.isClosedPm
-                      ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  Ap.-m. ferme
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                const v = !day.isClosed;
-                updateDay(day.dayOfWeek, 'isClosed', v);
-                if (v) {
-                  updateDay(day.dayOfWeek, 'isClosedAm', true);
-                  updateDay(day.dayOfWeek, 'isClosedPm', true);
-                } else {
-                  updateDay(day.dayOfWeek, 'isClosedAm', false);
-                  updateDay(day.dayOfWeek, 'isClosedPm', false);
-                }
-              }}
-              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                day.isClosed
-                  ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              Jour ferme
-            </button>
+            <CopyMenu
+              onCopyToAll={() => copyDayTo(day.dayOfWeek, (d) => d !== day.dayOfWeek)}
+              onCopyToWeekdays={() =>
+                copyDayTo(day.dayOfWeek, (d) => d !== day.dayOfWeek && d < 5)
+              }
+            />
           </div>
-        </div>
-      ))}
-      <div className="flex items-center gap-3 pt-3">
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-3">
         <button
           onClick={handleSave}
           disabled={saving}
