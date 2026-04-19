@@ -23,7 +23,7 @@ export const authOptions: AuthOptions = {
         });
 
         if (!agent || !agent.isActive) {
-          auditLog('LOGIN_FAILURE', { email: credentials.email, reason: agent ? 'inactive' : 'not_found' });
+          auditLog('LOGIN_FAILURE', { email: credentials.email, reason: 'invalid_credentials' });
           return null;
         }
 
@@ -33,7 +33,7 @@ export const authOptions: AuthOptions = {
         );
 
         if (!isValid) {
-          auditLog('LOGIN_FAILURE', { email: credentials.email, reason: 'bad_password' });
+          auditLog('LOGIN_FAILURE', { email: credentials.email, reason: 'invalid_credentials' });
           return null;
         }
 

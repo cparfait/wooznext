@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { TicketStatus } from '@prisma/client';
 import { auditLog } from '@/lib/audit';
+
+const resetSchema = z.object({
+  serviceId: z.string().min(1).optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const body = await req.json().catch(() => ({}));
-    const serviceId = body.serviceId as string | undefined;
+    let body: unknown = {};
+    const hasBody = req.headers.get('content-length') !== '0';
+    if (hasBody) {
+      try {
+        body = await req.json();
+      } catch {
+        return NextResponse.json({ error: 'Corps de requete invalide' }, { status: 400 });
+      }
+    }
+    const parsed = resetSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    }
+    const { serviceId } = parsed.data;
 
     // If agent role, they can only reset their own service
     if (session.user.role === 'AGENT') {

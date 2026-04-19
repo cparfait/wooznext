@@ -76,7 +76,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ items: null });
     }
 
-    const json = await res.json();
+    // Cap the response at 1 MB to avoid memory exhaustion on a malicious or
+    // misconfigured upstream feed.
+    const MAX_FEED_SIZE = 1024 * 1024;
+    const declared = Number(res.headers.get('content-length') ?? '0');
+    if (declared > MAX_FEED_SIZE) {
+      return NextResponse.json({ items: null });
+    }
+    const buffer = await res.arrayBuffer();
+    if (buffer.byteLength > MAX_FEED_SIZE) {
+      return NextResponse.json({ items: null });
+    }
+    const json = JSON.parse(new TextDecoder().decode(buffer));
 
     // Support array or object with common keys
     const rawItems = Array.isArray(json)

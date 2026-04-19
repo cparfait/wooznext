@@ -1,11 +1,15 @@
 /**
  * RGPD Purge Script
  *
- * Deletes visitor data older than 30 days.
+ * Anonymizes visitor phone numbers older than 30 days while preserving
+ * all tickets for historical statistics. Each visitor gets a unique
+ * `anon:{id}` marker so the unique constraint on phone is respected and
+ * stats can still distinguish individual visitors.
+ *
  * Run with: npx tsx scripts/purge-rgpd.ts
  * Schedule as a daily cron job in production.
  */
-import { PrismaClient, TicketStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -15,38 +19,23 @@ async function main() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
 
-  console.log(`Purging data older than ${cutoff.toISOString()} (${RETENTION_DAYS} days)...`);
+  console.log(`Anonymizing visitors older than ${cutoff.toISOString()} (${RETENTION_DAYS} days)...`);
 
-  // Delete old tickets (completed, cancelled, no-show)
-  const deletedTickets = await prisma.ticket.deleteMany({
-    where: {
-      createdAt: { lt: cutoff },
-      status: {
-        in: [TicketStatus.COMPLETED, TicketStatus.CANCELLED, TicketStatus.NO_SHOW],
-      },
-    },
-  });
+  const anonymizedCount: number = await prisma.$executeRaw`
+    UPDATE visitors
+    SET phone = 'anon:' || id
+    WHERE "createdAt" < ${cutoff} AND phone NOT LIKE 'anon:%'
+  `;
 
-  console.log(`Deleted ${deletedTickets.count} old tickets.`);
+  console.log(`Anonymized ${anonymizedCount} visitor(s).`);
 
-  // Delete old daily sequences
   const deletedSequences = await prisma.dailySequence.deleteMany({
     where: { date: { lt: cutoff } },
   });
 
   console.log(`Deleted ${deletedSequences.count} old daily sequences.`);
 
-  // Delete visitors with no remaining tickets
-  const orphanedVisitors = await prisma.visitor.deleteMany({
-    where: {
-      tickets: { none: {} },
-      createdAt: { lt: cutoff },
-    },
-  });
-
-  console.log(`Deleted ${orphanedVisitors.count} orphaned visitors.`);
-
-  console.log('RGPD purge completed.');
+  console.log('RGPD purge completed (tickets preserved for stats).');
 }
 
 main()
