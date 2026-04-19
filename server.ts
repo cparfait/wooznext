@@ -24,6 +24,24 @@ const ipConnectionCount = new Map<string, number>();
 
 const CUID_REGEX = /^c[a-z0-9]{20,30}$/;
 
+function parseCookieHeader(header: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!header) return out;
+  for (const pair of header.split(';')) {
+    const idx = pair.indexOf('=');
+    if (idx < 0) continue;
+    const name = pair.slice(0, idx).trim();
+    if (!name) continue;
+    const value = pair.slice(idx + 1).trim();
+    try {
+      out[name] = decodeURIComponent(value);
+    } catch {
+      out[name] = value;
+    }
+  }
+  return out;
+}
+
 function parseUrl(url: string) {
   const parsed = new URL(url, 'http://localhost');
   const query: Record<string, string> = {};
@@ -132,11 +150,11 @@ app.prepare().then(() => {
       // Verify the caller is actually authenticated as this agent by reading
       // the NextAuth JWT from the handshake cookies. Prevents impersonation.
       try {
+        const rawCookie = socket.handshake.headers.cookie ?? '';
+        const cookies = parseCookieHeader(rawCookie);
         const fakeReq = {
-          headers: {
-            cookie: socket.handshake.headers.cookie ?? '',
-          },
-          cookies: {},
+          headers: { cookie: rawCookie },
+          cookies,
         } as unknown as IncomingMessage & { cookies: Partial<Record<string, string>> };
         const token = await getToken({
           req: fakeReq,
