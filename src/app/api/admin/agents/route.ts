@@ -4,18 +4,12 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { auditLog } from '@/lib/audit';
+import { passwordSchema } from '@/lib/password-validation';
 
 /** Capitalize first letter of each part (separated by - or space) */
 function formatFirstName(s: string): string {
   return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
-
-const passwordSchema = z
-  .string()
-  .min(12, 'Mot de passe trop court (min 12 caractères)')
-  .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
-  .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
-  .regex(/[^A-Za-z0-9]/, 'Le mot de passe doit contenir au moins un caractère spécial');
 
 const createAgentSchema = z.object({
   firstName: z.string().min(1, 'Prenom requis'),

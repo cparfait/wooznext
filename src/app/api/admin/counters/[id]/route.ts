@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 
@@ -33,6 +34,9 @@ export async function PATCH(
 
     return NextResponse.json({ counter });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return NextResponse.json({ error: 'Guichet introuvable' }, { status: 404 });
+    }
     console.error('Error updating counter:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

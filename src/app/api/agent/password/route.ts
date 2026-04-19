@@ -4,18 +4,11 @@ import bcrypt from 'bcryptjs';
 import { getAgentSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { auditLog } from '@/lib/audit';
+import { passwordSchema as newPasswordSchema } from '@/lib/password-validation';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Le mot de passe actuel est requis'),
-  newPassword: z
-    .string()
-    .min(12, 'Le nouveau mot de passe doit contenir au moins 12 caracteres')
-    .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une lettre majuscule')
-    .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
-    .regex(
-      /[!@#$%^&*()_+\-=\[\]{}|;:',.<>?/~`]/,
-      'Le mot de passe doit contenir au moins un caractere special'
-    ),
+  newPassword: newPasswordSchema,
 });
 
 export async function POST(request: Request) {

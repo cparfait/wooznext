@@ -2,20 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getAdminSession } from '@/lib/api-auth';
 import { auditLog } from '@/lib/audit';
+import { passwordSchema } from '@/lib/password-validation';
 
 function formatFirstName(s: string): string {
   return s.replace(/([^\s-]+)/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
-
-const passwordSchema = z
-  .string()
-  .min(12, 'Mot de passe trop court (min 12 caractères)')
-  .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
-  .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
-  .regex(/[^A-Za-z0-9]/, 'Le mot de passe doit contenir au moins un caractère spécial');
 
 const updateAgentSchema = z.object({
   firstName: z.string().min(1).optional(),
@@ -65,6 +60,9 @@ export async function PATCH(
 
     return NextResponse.json({ agent });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return NextResponse.json({ error: 'Agent introuvable' }, { status: 404 });
+    }
     console.error('Error updating agent:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

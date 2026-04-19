@@ -20,6 +20,13 @@ export function validateEnv(): void {
     );
   }
 
+  const dbUrl = process.env.DATABASE_URL!;
+  if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+    throw new Error(
+      `DATABASE_URL doit commencer par postgresql:// ou postgres://. Valeur actuelle: "${dbUrl.slice(0, 20)}..."`
+    );
+  }
+
   // In production, NEXTAUTH_URL must use HTTPS (required for __Secure-/__Host-
   // cookie prefixes and SameSite=lax redirects).
   if (
