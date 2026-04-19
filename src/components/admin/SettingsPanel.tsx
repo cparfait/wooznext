@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import cronstrue from 'cronstrue/i18n';
 
 interface CronJob {
   id: string;
@@ -11,6 +12,14 @@ interface CronJob {
   lastRunAt: string | null;
   lastRunStatus: string | null;
   lastRunResult: string | null;
+}
+
+function humanizeCron(expr: string): string {
+  try {
+    return cronstrue.toString(expr, { locale: 'fr', use24HourTimeFormat: true });
+  } catch {
+    return '';
+  }
 }
 
 export default function SettingsPanel() {
@@ -234,8 +243,7 @@ export default function SettingsPanel() {
                     className="h-8 w-36 rounded border border-gray-300 bg-white px-2 text-xs font-mono focus:border-primary-500 focus:outline-none"
                   />
                   <span className="text-xs text-gray-400">
-                    {job.schedule === '0 0 * * *' && 'Tous les jours a minuit'}
-                    {job.schedule === '0 3 * * *' && 'Tous les jours a 3h'}
+                    {humanizeCron(job.schedule)}
                   </span>
                 </div>
 
