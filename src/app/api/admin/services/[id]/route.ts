@@ -5,12 +5,12 @@ import { getAdminSession } from '@/lib/api-auth';
 import { emitTickerUpdated, emitFeedUpdated } from '@/lib/socket-emitter';
 
 const updateServiceSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().min(1).max(100).optional(),
   prefix: z.string().max(5).optional(),
   isActive: z.boolean().optional(),
-  feedUrl: z.string().url().nullable().optional(),
+  feedUrl: z.string().url().max(2048).nullable().optional(),
   feedActive: z.boolean().optional(),
-  tickerMessage: z.string().nullable().optional(),
+  tickerMessage: z.string().max(500).nullable().optional(),
   tickerActive: z.boolean().optional(),
   tickerPosition: z.enum(['top', 'middle', 'bottom']).optional(),
   tickerHeight: z.number().int().min(30).max(120).optional(),
