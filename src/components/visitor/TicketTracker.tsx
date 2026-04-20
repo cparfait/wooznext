@@ -186,10 +186,13 @@ export default function TicketTracker({
             #{ticket.displayCode}
           </p>
           <p className="mt-5 text-base text-primary-200 sm:text-lg">
-            {counterLabel
-              ? `Veuillez vous presenter au ${counterLabel}`
-              : 'Veuillez vous presenter au guichet'}
+            Veuillez vous presenter au guichet
           </p>
+          {counterLabel && (
+            <p className="mt-1 text-xl font-bold text-white sm:text-2xl">
+              {counterLabel}
+            </p>
+          )}
         </div>
 
         <CelebrationPopup
