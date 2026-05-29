@@ -267,7 +267,7 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
         {hours.map((day) => (
           <div
             key={day.dayOfWeek}
-            className={`group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors ${
+            className={`group flex min-h-[3rem] items-center gap-3 rounded-lg px-2 py-2 transition-colors ${
               day.isClosed ? 'bg-gray-50/60' : 'hover:bg-gray-50'
             }`}
           >
@@ -282,14 +282,14 @@ function OpeningHoursEditor({ serviceId }: { serviceId: string }) {
               }`}
             >
               <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                  day.isClosed ? 'translate-x-0.5' : 'translate-x-[18px]'
+                className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  day.isClosed ? 'translate-x-0' : 'translate-x-4'
                 }`}
               />
             </button>
 
             <span
-              className={`w-24 flex-shrink-0 text-sm font-medium ${
+              className={`ml-2 w-24 flex-shrink-0 text-sm font-medium ${
                 day.isClosed ? 'text-gray-400' : 'text-gray-800'
               }`}
             >
