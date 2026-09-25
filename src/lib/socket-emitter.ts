@@ -1,4 +1,4 @@
-import { getSocketIOOrNull } from './socket-server';
+import { getSocketIOOrNull, ADMIN_ROOM } from './socket-server';
 
 function getIO() {
   return getSocketIOOrNull();
@@ -89,4 +89,14 @@ export function emitFeedUpdated(serviceId: string) {
   const io = getIO();
   if (!io) return;
   io.to(`service:${serviceId}`).emit('feed:updated', { serviceId });
+}
+
+/**
+ * Emit when agent presence changes outside of a socket event (counter taken / released).
+ */
+export function emitPresenceUpdate() {
+  const io = getIO();
+  if (!io) return;
+
+  io.to(ADMIN_ROOM).emit('presence:updated');
 }

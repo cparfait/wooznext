@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAgentSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { emitPresenceUpdate } from '@/lib/socket-emitter';
 
 const selectCounterSchema = z.object({
   counterId: z.string().min(1, 'counterId est requis'),
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
         agentId: true,
       },
     });
+    emitPresenceUpdate();
 
     return NextResponse.json({ counter: updated });
   } catch (error) {
@@ -106,6 +108,7 @@ export async function DELETE() {
         { status: 404 }
       );
     }
+    emitPresenceUpdate();
 
     return NextResponse.json({ success: true, message: 'Guichet libere' });
   } catch (error) {

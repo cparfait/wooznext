@@ -78,6 +78,79 @@ export function useServiceSocket(
 }
 
 /**
+ * Hook to join several service rooms at once (read-only supervision, e.g. admin queue view).
+ * Calls onEvent when a queue-related event is received for any of the services.
+ */
+export function useServicesSocket(
+  serviceIds: string[],
+  onEvent: (event: string, data: any) => void
+) {
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+
+  // Stable dependency: only re-subscribe when the set of services actually changes
+  const key = serviceIds.join(',');
+
+  useEffect(() => {
+    if (!key) return;
+    const ids = key.split(',');
+
+    const socket = getSocket();
+
+    function joinAll() {
+      ids.forEach((id) => socket.emit('join:service', id));
+    }
+
+    joinAll();
+    socket.on('connect', joinAll);
+
+    const events = ['queue:updated', 'ticket:called', 'ticket:completed'];
+    const handler = (event: string) => (data: any) => {
+      onEventRef.current(event, data);
+    };
+
+    const handlers = events.map((event) => {
+      const h = handler(event);
+      socket.on(event, h);
+      return { event, handler: h };
+    });
+
+    return () => {
+      socket.off('connect', joinAll);
+      handlers.forEach(({ event, handler: h }) => socket.off(event, h));
+    };
+  }, [key]);
+}
+
+/**
+ * Hook to join the admin room (session checked server-side).
+ * Calls onPresence when an agent or a visitor connects / disconnects.
+ */
+export function useAdminPresenceSocket(onPresence: () => void) {
+  const onPresenceRef = useRef(onPresence);
+  onPresenceRef.current = onPresence;
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    function joinAdmin() {
+      socket.emit('join:admin');
+    }
+
+    joinAdmin();
+    socket.on('connect', joinAdmin);
+
+    const handler = () => onPresenceRef.current();
+    socket.on('presence:updated', handler);
+
+    return () => {
+      socket.off('connect', joinAdmin);
+      socket.off('presence:updated', handler);
+    };
+  }, []);
+}
+
+/**
  * Hook to connect to Socket.IO and join a ticket room.
  * Calls onEvent when the ticket status changes.
  */

@@ -3,7 +3,7 @@ import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 import { getToken } from 'next-auth/jwt';
-import { setSocketIO } from './src/lib/socket-server';
+import { setSocketIO, ADMIN_ROOM } from './src/lib/socket-server';
 import { startScheduler } from './src/lib/scheduler';
 import { validateEnv } from './src/lib/env-validation';
 
@@ -122,8 +122,41 @@ app.prepare().then(() => {
     next();
   });
 
+  // Read the NextAuth JWT from the handshake cookies (null if not signed in).
+  async function getSocketToken(socket: { handshake: { headers: { cookie?: string } } }) {
+    const rawCookie = socket.handshake.headers.cookie ?? '';
+    const cookies = parseCookieHeader(rawCookie);
+    const fakeReq = {
+      headers: { cookie: rawCookie },
+      cookies,
+    } as unknown as IncomingMessage & { cookies: Partial<Record<string, string>> };
+    return getToken({
+      req: fakeReq,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NEXTAUTH_URL?.startsWith('https') ?? false,
+    });
+  }
+
+  // Tell admin views that an agent or a visitor connected / disconnected.
+  function notifyPresence() {
+    io.to(ADMIN_ROOM).emit('presence:updated');
+  }
+
   io.on('connection', (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
+
+    socket.on('join:admin', async () => {
+      try {
+        const token = await getSocketToken(socket);
+        if (!token || (token.role !== 'ADMIN' && token.role !== 'AGENT')) {
+          console.warn(`[Socket.IO] Unauthenticated join:admin from ${socket.id}`);
+          return;
+        }
+        socket.join(ADMIN_ROOM);
+      } catch (err) {
+        console.error(`[Socket.IO] Error validating join:admin from ${socket.id}:`, err);
+      }
+    });
 
     socket.on('join:service', (serviceId: unknown) => {
       if (typeof serviceId !== 'string' || !CUID_REGEX.test(serviceId)) {
@@ -139,6 +172,8 @@ app.prepare().then(() => {
         return;
       }
       socket.join(`ticket:${ticketId}`);
+      (socket as any).followsTicket = true;
+      notifyPresence();
     });
 
     socket.on('agent:register', async (agentId: unknown) => {
@@ -150,17 +185,7 @@ app.prepare().then(() => {
       // Verify the caller is actually authenticated as this agent by reading
       // the NextAuth JWT from the handshake cookies. Prevents impersonation.
       try {
-        const rawCookie = socket.handshake.headers.cookie ?? '';
-        const cookies = parseCookieHeader(rawCookie);
-        const fakeReq = {
-          headers: { cookie: rawCookie },
-          cookies,
-        } as unknown as IncomingMessage & { cookies: Partial<Record<string, string>> };
-        const token = await getToken({
-          req: fakeReq,
-          secret: process.env.NEXTAUTH_SECRET,
-          secureCookie: process.env.NEXTAUTH_URL?.startsWith('https') ?? false,
-        });
+        const token = await getSocketToken(socket);
         if (!token || token.id !== agentId) {
           console.warn(`[Socket.IO] Unauthenticated agent:register from ${socket.id} for ${agentId}`);
           socket.emit('agent:force-disconnect');
@@ -195,6 +220,8 @@ app.prepare().then(() => {
           s.disconnect(true);
         }
       }
+
+      notifyPresence();
     });
 
     socket.on('disconnect', async () => {
@@ -219,6 +246,10 @@ app.prepare().then(() => {
             console.error(`[Socket.IO] Error releasing counter for agent ${agentId}:`, err);
           }
         }
+      }
+
+      if (agentId || (socket as any).followsTicket) {
+        notifyPresence();
       }
     });
   });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { getSocketIOOrNull } from '@/lib/socket-server';
+import { emitPresenceUpdate } from '@/lib/socket-emitter';
 
 export async function POST(
   req: NextRequest,
@@ -49,6 +50,7 @@ export async function POST(
       where: { id },
       data: { agentId: null },
     });
+    emitPresenceUpdate();
 
     return NextResponse.json({ success: true });
   } catch (error) {

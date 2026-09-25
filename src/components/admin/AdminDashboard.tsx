@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import StatsPanel from './StatsPanel';
+import QueuePanel from './QueuePanel';
 import ServicesPanel from './ServicesPanel';
 import AgentsPanel from './AgentsPanel';
 import SettingsPanel from './SettingsPanel';
 
-type Tab = 'stats' | 'services' | 'agents' | 'settings';
+type Tab = 'stats' | 'queue' | 'services' | 'agents' | 'settings';
 
 interface AdminDashboardProps {
   userId: string;
@@ -23,12 +24,14 @@ export default function AdminDashboard({ userId, userRole, userServiceId }: Admi
   const tabs: { key: Tab; label: string }[] = isFullAdmin
     ? [
         { key: 'stats', label: 'Statistiques' },
+        { key: 'queue', label: "File d'attente" },
         { key: 'services', label: 'Services' },
         { key: 'agents', label: 'Agents' },
         { key: 'settings', label: 'Parametres' },
       ]
     : [
         { key: 'stats', label: 'Statistiques' },
+        { key: 'queue', label: "File d'attente" },
         { key: 'services', label: 'Mon service' },
       ];
 
@@ -81,6 +84,7 @@ export default function AdminDashboard({ userId, userRole, userServiceId }: Admi
       {/* Content */}
       <div className="mx-auto max-w-7xl p-4">
         {tab === 'stats' && <StatsPanel serviceScope={isFullAdmin ? null : userServiceId} />}
+        {tab === 'queue' && <QueuePanel />}
         {tab === 'services' && <ServicesPanel serviceScope={isFullAdmin ? null : userServiceId} />}
         {isFullAdmin && tab === 'agents' && <AgentsPanel currentUserId={userId} />}
         {isFullAdmin && tab === 'settings' && <SettingsPanel />}
